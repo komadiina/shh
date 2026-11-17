@@ -65,7 +65,8 @@ src/
   main.ts            entry: CLI flags, config load, renderer + App
   cli.ts             argument parsing
   config/            types, schema (validation), paths (XDG), store (YAML I/O)
-  session/           ssh argv builder, tmux adapter, terminal detection, launcher
+  session/           per-protocol argv builders (ssh, telnet, rdp), client detection,
+                     password staging (secrets.ts), tmux adapter, terminal detection, launcher
   ui/                App (state, keys, rendering), table model, modal/form, dialogs, panes
   util/shell.ts      quoting/splitting + ProcessRunner (injectable for tests)
 tests/               unit tests + headless UI tests (@opentui/core/testing)

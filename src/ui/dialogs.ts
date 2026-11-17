@@ -8,7 +8,10 @@ export interface ConfirmOptions {
   title: string;
   message: string[];
   confirmLabel?: string;
+  cancelLabel?: string;
   danger?: boolean;
+  /** A third choice next to confirm / cancel, picked with its own key. */
+  alternative?: { key: string; label: string; onSelect: () => void };
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -26,9 +29,12 @@ export class ConfirmModal extends Modal {
       chunk("/Enter ", theme.dim),
       chunk(opts.confirmLabel ?? "confirm", opts.danger ? theme.error : theme.ok),
       chunk("   "),
+      ...(opts.alternative
+        ? [chunk(opts.alternative.key, theme.hotkey, { bold: true }), chunk(" "), chunk(opts.alternative.label, theme.fg), chunk("   ")]
+        : []),
       chunk("n", theme.hotkey, { bold: true }),
       chunk("/Esc ", theme.dim),
-      chunk("cancel", theme.fg),
+      chunk(opts.cancelLabel ?? "cancel", theme.fg),
     ];
     this.box.add(new TextRenderable(renderer, { content: lines(...body), height: opts.message.length, wrapMode: "none" }));
     this.box.add(new TextRenderable(renderer, { content: "", height: 1 }));
@@ -38,7 +44,8 @@ export class ConfirmModal extends Modal {
   handleKey(key: KeyEvent): boolean {
     key.preventDefault();
     key.stopPropagation();
-    if (key.name === "y" || key.name === "return" || key.name === "linefeed") this.opts.onConfirm();
+    if (this.opts.alternative && key.name === this.opts.alternative.key) this.opts.alternative.onSelect();
+    else if (key.name === "y" || key.name === "return" || key.name === "linefeed") this.opts.onConfirm();
     else if (key.name === "n" || key.name === "escape" || key.name === "q") this.opts.onCancel();
     return true;
   }
@@ -84,14 +91,14 @@ export function helpBody(): Array<string | TextChunk[]> {
     row("/", "filter (Enter keeps it, Esc clears it)"),
     "",
     [chunk("Sessions", theme.accent, { bold: true })],
-    row("Enter", "connect, or resume the existing tmux session"),
+    row("Enter", "connect, or resume the existing tmux session (RDP opens a window)"),
     row("I", "connect via IPv4 instead of the hostname"),
     row("K", "kill the server's tmux session"),
     row("r", "reload the config file and refresh session status"),
     "",
     [chunk("Servers & settings", theme.accent, { bold: true })],
-    row("a / e / d", "add / edit / delete the selected server"),
-    row("1-9", "sort by column (press again to reverse)"),
+    row("a / e / d", "add / edit / delete the selected server (ssh, telnet, rdp)"),
+    row("0-9", "sort by column (press again to reverse)"),
     row("S", "reverse the sort direction"),
     row("c", "settings: default user, key, port, launch mode…"),
     row("q / Ctrl+C", "quit"),

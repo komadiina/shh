@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { newServer, type ServerEntry } from "../src/config/types.ts";
 import { displayWidth, fit, relativeTime, truncate } from "../src/ui/format.ts";
-import { COLUMNS, filterServers, layoutColumns, ROW_PREFIX_WIDTH, sortServers } from "../src/ui/table.ts";
+import { COLUMNS, DISPLAY_ORDER, filterServers, layoutColumns, ROW_PREFIX_WIDTH, sortServers } from "../src/ui/table.ts";
 
 function s(name: string, extra: Partial<ServerEntry> = {}): ServerEntry {
   return { ...newServer(name), ...extra };
@@ -69,7 +69,8 @@ describe("filterServers", () => {
 describe("layoutColumns", () => {
   test("wide terminal shows every column and fills the width", () => {
     const cols = layoutColumns(servers, 160);
-    expect(cols.map((c) => c.def.key)).toEqual(COLUMNS.map((c) => c.key));
+    expect(cols.map((c) => c.def.key)).toEqual([...DISPLAY_ORDER]);
+    expect(new Set(DISPLAY_ORDER)).toEqual(new Set(COLUMNS.map((c) => c.key)));
     const total = cols.reduce((sum, c) => sum + c.width, 0) + 2 * (cols.length - 1);
     expect(total).toBe(160 - ROW_PREFIX_WIDTH);
     expect(cols.find((c) => c.def.key === "description")!.width).toBeGreaterThan(20);

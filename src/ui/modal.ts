@@ -7,6 +7,7 @@ import {
   InputRenderable,
   StyledText,
   TextRenderable,
+  bg,
   bold,
   fg,
   type CliRenderer,
@@ -107,11 +108,30 @@ export abstract class Modal {
 // Form modal
 // ---------------------------------------------------------------------------
 
+/** Decides from the current values whether a field is shown. */
+export type FieldVisibility = (values: FormValues) => boolean;
+
+interface FieldBase {
+  key: string;
+  label: string;
+  help?: string;
+  /** Hidden fields are skipped by navigation and keep their value. */
+  visible?: FieldVisibility;
+}
+
 export type FieldSpec =
-  | { kind: "text"; key: string; label: string; placeholder?: string; help?: string }
-  | { kind: "number"; key: string; label: string; placeholder?: string; help?: string }
-  | { kind: "choice"; key: string; label: string; options: readonly string[]; help?: string }
-  | { kind: "toggle"; key: string; label: string; help?: string };
+  | (FieldBase & { kind: "text"; placeholder?: string })
+  | (FieldBase & { kind: "number"; placeholder?: string })
+  | (FieldBase & { kind: "choice"; options: readonly string[] })
+  | (FieldBase & { kind: "toggle" })
+  | (FieldBase & {
+      /** All options in a row, the selected one boxed: `[PUBKEY]  USERPASS`. */
+      kind: "segmented";
+      options: readonly string[] | ((values: FormValues) => readonly string[]);
+      /** Reason an option cannot be picked right now (shown dimmed and skipped), or undefined. */
+      disabled?: (option: string, values: FormValues) => string | undefined;
+    })
+  | (FieldBase & { kind: "secret"; placeholder?: string });
 
 export type FormValues = Record<string, string | boolean>;
 
@@ -122,9 +142,13 @@ export interface FormOptions {
   /** Read-only lines shown above the fields. */
   info?: string[];
   validate?: (values: FormValues) => Record<string, string>;
+  /** Called after a choice / toggle / segmented field changed; may adjust `values` in place. */
+  onChange?: (key: string, values: FormValues) => void;
   onSubmit: (values: FormValues) => void;
   onCancel: () => void;
   width?: number;
+  /** Key of the field focused when the form opens (default: the first visible one). */
+  initialFocus?: string;
 }
 
 interface FieldRow {
@@ -137,6 +161,10 @@ interface FieldRow {
 
 const HINT = "Tab/↑↓ move · Enter next · Space/←→ change · Ctrl+S save · Esc cancel";
 
+function segmentOptions(spec: FieldSpec & { kind: "segmented" }, values: FormValues): readonly string[] {
+  return typeof spec.options === "function" ? spec.options(values) : spec.options;
+}
+
 export class FormModal extends Modal {
   private readonly rows: FieldRow[] = [];
   private readonly values: FormValues;
@@ -144,6 +172,7 @@ export class FormModal extends Modal {
   private readonly status: TextRenderable;
   private errors: Record<string, string> = {};
   private readonly labelWidth: number;
+  private readonly chromeHeight: number;
 
   constructor(
     renderer: CliRenderer,
@@ -151,8 +180,9 @@ export class FormModal extends Modal {
   ) {
     const info = form.info ?? [];
     const width = form.width ?? 74;
-    const height = 2 + (info.length > 0 ? info.length + 1 : 0) + form.fields.length + 3;
-    super(renderer, { title: form.title, width, height });
+    const chromeHeight = 2 + (info.length > 0 ? info.length + 1 : 0) + 3;
+    super(renderer, { title: form.title, width, height: chromeHeight + form.fields.length });
+    this.chromeHeight = chromeHeight;
     this.values = { ...form.values };
     this.labelWidth = Math.max(...form.fields.map((f) => displayWidth(f.label))) + 3;
 
@@ -194,11 +224,14 @@ export class FormModal extends Modal {
     this.status = new TextRenderable(renderer, { content: "", height: 1, width: "100%" });
     this.box.add(this.status);
     this.box.add(new TextRenderable(renderer, { content: new StyledText([chunk(truncate(HINT, width - 4), theme.dim)]), height: 1, width: "100%" }));
+    this.normalizeSegments();
+    this.layout();
     this.refresh();
   }
 
   protected override onMounted(): void {
-    this.focusField(0);
+    const initial = this.rows.findIndex((r) => r.spec.key === this.form.initialFocus);
+    this.focusField(this.nextVisible(Math.max(0, initial), 1));
   }
 
   protected override onUnmount(): void {
@@ -207,6 +240,51 @@ export class FormModal extends Modal {
 
   private get current(): FieldRow {
     return this.rows[this.index]!;
+  }
+
+  private isVisible(row: FieldRow): boolean {
+    return row.spec.visible?.(this.values) ?? true;
+  }
+
+  /** First visible row index starting at `from` and stepping by `step` (wrapping). */
+  private nextVisible(from: number, step: 1 | -1): number {
+    const count = this.rows.length;
+    for (let i = 0; i < count; i++) {
+      const idx = (((from + i * step) % count) + count) % count;
+      if (this.isVisible(this.rows[idx]!)) return idx;
+    }
+    return 0;
+  }
+
+  /** Show/hide rows for the current values and resize the modal to fit. */
+  private layout(): void {
+    let shown = 0;
+    for (const row of this.rows) {
+      const visible = this.isVisible(row);
+      row.row.visible = visible;
+      if (visible) shown++;
+    }
+    this.options.height = this.chromeHeight + shown;
+    if (this.mounted) this.center();
+  }
+
+  /**
+   * Keep segmented values on an existing option. After a change (`changedKey`)
+   * the other segmented fields also move off disabled options; initially a
+   * disabled value is kept so editing e.g. an RDP server without an RDP client
+   * does not silently turn it into something else.
+   */
+  private normalizeSegments(changedKey?: string): void {
+    for (const { spec } of this.rows) {
+      if (spec.kind !== "segmented") continue;
+      const options = segmentOptions(spec, this.values);
+      const value = String(this.values[spec.key] ?? "");
+      const usable = (o: string) => !spec.disabled?.(o, this.values);
+      const strict = changedKey !== undefined && changedKey !== spec.key;
+      if (options.includes(value) && (!strict || usable(value))) continue;
+      const fallback = options.find(usable) ?? options[0];
+      if (fallback !== undefined) this.values[spec.key] = fallback;
+    }
   }
 
   private collect(): FormValues {
@@ -240,45 +318,114 @@ export class FormModal extends Modal {
       const marker = focused ? "▸ " : "  ";
       const color = error ? theme.error : focused ? theme.accent : theme.fg;
       row.label.content = new StyledText([chunk(fit(marker + row.spec.label, this.labelWidth - 1), color, { bold: focused }), chunk(" ")]);
-      if (row.valueText) {
-        const value = this.values[row.spec.key];
-        let text: string;
-        if (row.spec.kind === "toggle") text = value === true ? "[x] yes" : "[ ] no";
-        else text = `◂ ${String(value ?? "")} ▸`;
-        row.valueText.content = new StyledText([chunk(text, focused ? theme.headerFg : theme.fg, { bold: focused })]);
-      }
+      if (row.valueText) row.valueText.content = this.renderValue(row, focused);
     });
     const current = this.current;
     const error = this.errors[current.spec.key] ?? Object.values(this.errors)[0];
     const width = this.options.width - 4;
+    const help = this.helpFor(current);
     if (error) this.status.content = new StyledText([chunk(truncate(`✗ ${error}`, width), theme.error)]);
-    else if (current.spec.help) this.status.content = new StyledText([chunk(truncate(current.spec.help, width), theme.dim)]);
+    else if (help) this.status.content = new StyledText([chunk(truncate(help, width), theme.dim)]);
     else this.status.content = "";
+  }
+
+  private helpFor(row: FieldRow): string | undefined {
+    const spec = row.spec;
+    if (spec.kind !== "segmented" || !spec.disabled) return spec.help;
+    const reasons = segmentOptions(spec, this.values)
+      .map((o) => spec.disabled!(o, this.values))
+      .filter((r): r is string => r !== undefined);
+    // why options are greyed out matters more than the generic help, so it comes first
+    return [...reasons, spec.help].filter(Boolean).join(" · ") || undefined;
+  }
+
+  private renderValue(row: FieldRow, focused: boolean): StyledText {
+    const spec = row.spec;
+    const value = this.values[spec.key];
+    const color = focused ? theme.headerFg : theme.fg;
+    switch (spec.kind) {
+      case "toggle":
+        return new StyledText([chunk(value === true ? "[x] yes" : "[ ] no", color, { bold: focused })]);
+      case "segmented": {
+        const out: TextChunk[] = [];
+        for (const option of segmentOptions(spec, this.values)) {
+          const label = option.toUpperCase();
+          if (option === value) out.push(chunk(`[${label}]`, focused ? theme.accent : theme.headerFg, { bold: true }));
+          else if (spec.disabled?.(option, this.values)) out.push(chunk(` ${label}✗`, theme.placeholder));
+          else out.push(chunk(` ${label} `, theme.dim));
+          out.push(chunk(" "));
+        }
+        return new StyledText(out);
+      }
+      case "secret": {
+        const text = String(value ?? "");
+        const bgColor = focused ? theme.inputFocusedBg : theme.inputBg;
+        const shown = text ? "•".repeat(text.length) : (spec.placeholder ?? "");
+        const pad = " ".repeat(Math.max(0, this.options.width - this.labelWidth - 4 - displayWidth(shown) - (focused ? 1 : 0)));
+        const chunks: TextChunk[] = [bg(bgColor)(chunk(shown, text ? color : theme.placeholder))];
+        if (focused) chunks.push(bg(theme.headerFg)(chunk(" ", theme.inputFocusedBg)));
+        chunks.push(bg(bgColor)(chunk(pad)));
+        return new StyledText(chunks);
+      }
+      default:
+        return new StyledText([chunk(`◂ ${String(value ?? "")} ▸`, color, { bold: focused })]);
+    }
+  }
+
+  private changed(key: string): void {
+    this.collect();
+    this.form.onChange?.(key, this.values);
+    this.normalizeSegments(key);
+    this.layout();
+    this.refresh();
   }
 
   private cycle(delta: number): void {
     const row = this.current;
-    if (row.spec.kind === "toggle") {
-      this.values[row.spec.key] = !(this.values[row.spec.key] === true);
-    } else if (row.spec.kind === "choice") {
-      const options = row.spec.options;
-      const currentIndex = Math.max(0, options.indexOf(String(this.values[row.spec.key] ?? "")));
-      const next = (((currentIndex + delta) % options.length) + options.length) % options.length;
-      this.values[row.spec.key] = options[next]!;
+    const spec = row.spec;
+    if (spec.kind === "toggle") {
+      this.values[spec.key] = !(this.values[spec.key] === true);
+    } else if (spec.kind === "choice" || spec.kind === "segmented") {
+      const options = spec.kind === "segmented" ? segmentOptions(spec, this.values) : spec.options;
+      const usable = (o: string) => spec.kind !== "segmented" || !spec.disabled?.(o, this.values);
+      let idx = Math.max(0, options.indexOf(String(this.values[spec.key] ?? "")));
+      for (let i = 0; i < options.length; i++) {
+        idx = (((idx + delta) % options.length) + options.length) % options.length;
+        if (usable(options[idx]!)) break;
+      }
+      if (!usable(options[idx]!)) return;
+      this.values[spec.key] = options[idx]!;
+    } else {
+      return;
     }
-    this.refresh();
+    this.changed(spec.key);
   }
 
   submit(): void {
     const values = this.collect();
     this.errors = this.form.validate?.(values) ?? {};
     if (Object.keys(this.errors).length > 0) {
-      const firstBad = this.rows.findIndex((r) => this.errors[r.spec.key]);
+      const firstBad = this.rows.findIndex((r) => this.errors[r.spec.key] && this.isVisible(r));
       if (firstBad >= 0) this.focusField(firstBad);
       else this.refresh();
       return;
     }
     this.form.onSubmit(values);
+  }
+
+  /** Typing into a masked field; the value never reaches an InputRenderable. */
+  private editSecret(key: KeyEvent): boolean {
+    const field = this.current.spec.key;
+    const value = String(this.values[field] ?? "");
+    let next = value;
+    if (key.name === "backspace") next = value.slice(0, -1);
+    else if (key.ctrl && key.name === "u") next = "";
+    else if (!key.ctrl && !key.meta && key.sequence && /^[^\x00-\x1f\x7f]$/u.test(key.sequence)) next = value + key.sequence;
+    else return false;
+    this.values[field] = next;
+    delete this.errors[field];
+    this.refresh();
+    return true;
   }
 
   handleKey(key: KeyEvent): boolean {
@@ -300,22 +447,28 @@ export class FormModal extends Modal {
     }
     if (key.name === "tab" || key.name === "down") {
       this.collect();
-      this.focusField(this.index + (key.shift && key.name === "tab" ? -1 : 1));
+      const step = key.shift && key.name === "tab" ? -1 : 1;
+      this.focusField(this.nextVisible(this.index + step, step));
       return consume();
     }
     if (key.name === "up") {
       this.collect();
-      this.focusField(this.index - 1);
+      this.focusField(this.nextVisible(this.index - 1, -1));
       return consume();
     }
+    const isLast = this.nextVisible(this.index + 1, 1) <= this.index;
     if (key.name === "return" || key.name === "linefeed") {
-      if (isText) {
+      if (isText || row.spec.kind === "secret") {
         this.collect();
-        if (this.index === this.rows.length - 1) this.submit();
-        else this.focusField(this.index + 1);
+        if (isLast) this.submit();
+        else this.focusField(this.nextVisible(this.index + 1, 1));
       } else {
         this.cycle(1);
       }
+      return consume();
+    }
+    if (row.spec.kind === "secret") {
+      this.editSecret(key);
       return consume();
     }
     if (!isText) {

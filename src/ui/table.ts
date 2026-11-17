@@ -2,7 +2,7 @@
  * Server table model: columns, sorting, filtering and width layout.
  * Pure functions – the renderable glue lives in app.ts.
  */
-import type { ServerEntry, SortColumn, SortDirection } from "../config/types.ts";
+import { authOf, protocolOf, type ServerEntry, type SortColumn, type SortDirection } from "../config/types.ts";
 import { basename, displayWidth, relativeTime } from "./format.ts";
 
 export interface ColumnDef {
@@ -26,11 +26,39 @@ export const COLUMNS: readonly ColumnDef[] = [
   { key: "hostname", title: "Host", hotkey: "2", min: 8, max: 40, priority: 80, align: "left", flexible: true, value: (s) => s.hostname ?? "" },
   { key: "ipv4", title: "IPv4", hotkey: "3", min: 7, max: 15, priority: 50, align: "left", flexible: false, value: (s) => s.ipv4 ?? "" },
   { key: "user", title: "User", hotkey: "4", min: 4, max: 16, priority: 60, align: "left", flexible: false, value: (s) => s.user ?? "" },
-  { key: "identity_file", title: "Key", hotkey: "5", min: 3, max: 24, priority: 30, align: "left", flexible: true, value: (s) => basename(s.identity_file) },
+  { key: "identity_file", title: "Auth", hotkey: "5", min: 4, max: 24, priority: 30, align: "left", flexible: true, value: authLabel },
   { key: "port", title: "Port", hotkey: "6", min: 4, max: 5, priority: 20, align: "right", flexible: false, value: (s) => (s.port === undefined ? "" : String(s.port)) },
   { key: "connections", title: "Conn", hotkey: "7", min: 4, max: 6, priority: 70, align: "right", flexible: false, value: (s) => String(s.connections) },
   { key: "description", title: "Description", hotkey: "8", min: 8, max: Infinity, priority: 40, align: "left", flexible: true, value: (s) => s.description ?? "" },
   { key: "last_connected", title: "Last", hotkey: "9", min: 5, max: 10, priority: 10, align: "right", flexible: false, value: (s, now) => relativeTime(s.last_connected, now) },
+  { key: "protocol", title: "Proto", hotkey: "0", min: 5, max: 6, priority: 65, align: "left", flexible: false, value: (s) => protocolOf(s) },
+];
+
+/** Auth column: the key file for pubkey, otherwise how the password is handled. */
+export function authLabel(server: ServerEntry): string {
+  switch (authOf(server)) {
+    case "userpass":
+      return server.password_b64 ? "pass (stored)" : "pass (ask)";
+    case "none":
+      return "";
+    case "pubkey":
+    default:
+      return basename(server.identity_file);
+  }
+}
+
+/** Display order: Proto sits next to Name although its hotkey (0) comes last. */
+export const DISPLAY_ORDER: readonly SortColumn[] = [
+  "name",
+  "protocol",
+  "hostname",
+  "ipv4",
+  "user",
+  "identity_file",
+  "port",
+  "connections",
+  "description",
+  "last_connected",
 ];
 
 export const COLUMN_BY_HOTKEY: ReadonlyMap<string, ColumnDef> = new Map(COLUMNS.map((c) => [c.hotkey, c]));
@@ -47,7 +75,9 @@ function sortValue(server: ServerEntry, column: SortColumn): string | number | u
     case "last_connected":
       return server.last_connected ? new Date(server.last_connected).getTime() : undefined;
     case "identity_file":
-      return server.identity_file ? basename(server.identity_file) : undefined;
+      return authLabel(server) || undefined;
+    case "protocol":
+      return protocolOf(server);
     case "name":
       return server.name;
     case "hostname":
@@ -91,7 +121,7 @@ export function sortServers(servers: readonly ServerEntry[], column: SortColumn,
 export function matchesFilter(server: ServerEntry, filter: string): boolean {
   const needle = filter.trim().toLowerCase();
   if (!needle) return true;
-  const haystack = [server.name, server.hostname, server.ipv4, server.user, server.description, ...server.tags]
+  const haystack = [server.name, protocolOf(server), server.hostname, server.ipv4, server.user, server.description, ...server.tags]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
@@ -129,7 +159,7 @@ export function layoutColumns(
     natural.set(col.key, Math.max(col.min, Math.min(col.max, w)));
   }
 
-  let visible = [...COLUMNS];
+  let visible = DISPLAY_ORDER.map((key) => COLUMN_BY_KEY.get(key)!);
   const total = (cols: ColumnDef[], widths: Map<SortColumn, number>) =>
     cols.reduce((sum, c) => sum + (widths.get(c.key) ?? c.min), 0) + GAP * Math.max(0, cols.length - 1);
 

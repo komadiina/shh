@@ -63,8 +63,11 @@ export interface ProcessRunner {
   capture(argv: readonly string[]): string;
   /** Does an executable with this name exist on PATH? */
   commandExists(name: string): boolean;
-  /** Start `argv` detached from this process (own session, no stdio) and return immediately. */
-  spawnDetached(argv: readonly string[]): void;
+  /**
+   * Start `argv` detached from this process (own session, no output) and return
+   * immediately. `stdin`, when given, is written to the child's stdin.
+   */
+  spawnDetached(argv: readonly string[], options?: { stdin?: string }): void;
 }
 
 export class CommandNotFoundError extends Error {
@@ -96,13 +99,20 @@ export const realRunner: ProcessRunner = {
     const result = spawnSync(probe[0]!, probe.slice(1), { stdio: "ignore" });
     return result.status === 0;
   },
-  spawnDetached(argv) {
+  spawnDetached(argv, options = {}) {
     const [cmd, ...args] = argv;
     if (!cmd) throw new Error("empty argv");
-    const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+    const withInput = options.stdin !== undefined;
+    const child = spawn(cmd, args, { detached: true, stdio: withInput ? ["pipe", "ignore", "ignore"] : "ignore" });
     child.on("error", () => {
       /* reported through the launcher's pre-flight checks; nothing to do here */
     });
+    if (withInput && child.stdin) {
+      child.stdin.on("error", () => {
+        /* the client exited before reading its input */
+      });
+      child.stdin.end(options.stdin);
+    }
     child.unref();
   },
 };

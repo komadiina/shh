@@ -16,6 +16,9 @@ running, and pressing Enter on that server again **resumes** it.
 | **OpenSSH client** (`ssh`) | Yes | Already installed on macOS and almost every Linux distribution. |
 | **tmux** | Recommended | Gives you resumable sessions. `brew install tmux` / `sudo apt install tmux` / `sudo dnf install tmux`. Byobu users already have it, because byobu runs on tmux. |
 | A terminal emulator | Only for `launch: terminal` | Auto-detected (see §6.3). |
+| **telnet** | Only for telnet servers | The TELNET option in the form is greyed out when it is missing. |
+| **expect** | Only for telnet with a stored password | Without it telnet works, but you type the login yourself. |
+| **xfreerdp3** (FreeRDP 3) | Only for RDP servers | The RDP option in the form is greyed out when it is missing. |
 
 Supported platforms: macOS (Intel and Apple Silicon) and Linux (x64 and arm64,
 glibc or musl). Windows is not supported, because tmux and the session model
@@ -151,7 +154,8 @@ startup, go to Settings (`c`).
 |---|---|
 | `Tab` / `↓`, `Shift+Tab` / `↑` | Next / previous field |
 | `Enter` | Next field. On the last field, it saves. |
-| `Space` / `←` `→` | Change a choice field (◂ value ▸) or a toggle ([x]) |
+| `Space` / `←` `→` | Change a choice field (◂ value ▸), a toggle ([x]) or a box selector (`[SSH]  TELNET  RDP`) |
+| `Ctrl+U` | Clear the password field |
 | `Ctrl+S` | Save |
 | `Esc` | Cancel without saving |
 
@@ -292,7 +296,44 @@ servers:
     last_connected: 2026-11-10T14:03:00.000Z   # maintained by sshtui
 ```
 
-### 7.2 What sshtui does with your keys
+### 7.2 Protocols and logins
+
+Each server has a **protocol** (`[SSH]` / `[TELNET]` / `[RDP]` at the top of the
+add/edit form) and an **auth** method (`[PUBKEY]` / `[USERPASS]`, or `[NONE]` for
+telnet). The form only shows the fields that apply: the key path for ssh +
+PUBKEY, the password for USERPASS, and domain / resolution / certificate /
+clipboard / shared directory for RDP. Options whose client is not installed are
+greyed out with a ✗, and the hint line says why.
+
+| Protocol | Runs | Default port | Notes |
+|---|---|---|---|
+| ssh | `ssh` in tmux / inline / a new terminal | 22 (or `~/.ssh/config`) | PUBKEY or USERPASS |
+| telnet | `telnet [-l user] host [port]`, same session modes as ssh | 23 | USERPASS with a stored password needs `expect` |
+| rdp | `xfreerdp3` in its own window | 3389 | Always USERPASS; RDP windows are not tmux sessions, so `K` does not apply |
+
+**Stored passwords are not encrypted.** With USERPASS you can leave the password
+empty (you are asked when connecting) or store it. A stored password is written
+to the config file as `password_b64`, base64-encoded. Base64 only hides it from a
+casual glance: anyone who can read the file can decode it. sshtui asks for
+confirmation every time a new or changed password would be stored. In that dialog,
+`y` stores it, `w` saves the server without it, and `Esc` goes back to the form.
+
+How a stored password reaches the client (it is never put on a command line, so
+it does not show up in `ps`):
+
+- ssh: through an `SSH_ASKPASS` helper. The password is staged in a `0600` file
+  in a private runtime directory (`$XDG_RUNTIME_DIR/sshtui`), read into the
+  session's environment and deleted before ssh starts. Prompts that are not
+  password prompts, such as host key confirmation, are still asked in the terminal.
+  Needs OpenSSH 8.4 or newer.
+- telnet: an `expect` script answers the first login and password prompts, then
+  hands the session to you.
+- rdp: all arguments, including the password, are piped to
+  `xfreerdp3 /args-from:stdin`. Without a stored password, xfreerdp3 runs in the
+  app's terminal so it can ask for the password, and sshtui waits until the RDP
+  window closes.
+
+### 7.3 What sshtui does with your keys
 
 Nothing beyond storing the path. sshtui **never opens, reads or copies**
 private key files. It saves the *path* in the YAML file and passes it to
@@ -300,7 +341,7 @@ private key files. It saves the *path* in the YAML file and passes it to
 empty to let ssh use its normal mechanisms: `ssh-agent`, `~/.ssh/config`
 `IdentityFile`, or the default keys.
 
-### 7.3 Working with `~/.ssh/config`
+### 7.4 Working with `~/.ssh/config`
 
 sshtui calls the system `ssh`, so everything in `~/.ssh/config` still applies:
 `ProxyJump`, `IdentityFile`, `User`, `Port`, `ControlMaster` and so on.
@@ -311,7 +352,7 @@ sshtui calls the system `ssh`, so everything in `~/.ssh/config` still applies:
 - Options set on the command line (`-i`, `-p`, `user@`) **override**
   `~/.ssh/config`. Leave those fields empty if you want the ssh config to decide.
 
-### 7.4 Validation
+### 7.5 Validation
 
 - **Errors** (the app refuses to start, with a message that names the field):
   a server without a name, duplicate names, `servers` not being a list, or

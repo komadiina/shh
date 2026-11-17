@@ -20,8 +20,23 @@ export type LaunchMode =
 /** Which address of a server is used as the ssh target. */
 export type ConnectVia = "hostname" | "ipv4";
 
+/** How a server is reached. Missing in the config means `ssh`. */
+export type Protocol = "ssh" | "telnet" | "rdp";
+
+/**
+ * How the user logs in.
+ *   pubkey   – ssh key (`identity_file`) or whatever ssh decides. ssh only.
+ *   userpass – user + password; the password is optional and may be stored base64-encoded.
+ *   none     – no automated login (telnet only; the remote login prompt is answered by hand).
+ */
+export type AuthMethod = "pubkey" | "userpass" | "none";
+
+/** RDP certificate policy, passed as `/cert:<value>`. */
+export type RdpCert = "tofu" | "ignore" | "deny";
+
 export type SortColumn =
   | "name"
+  | "protocol"
   | "hostname"
   | "ipv4"
   | "user"
@@ -35,8 +50,12 @@ export type SortDirection = "asc" | "desc";
 
 export const LAUNCH_MODES: readonly LaunchMode[] = ["auto", "tmux", "inline", "terminal"];
 export const CONNECT_VIA: readonly ConnectVia[] = ["hostname", "ipv4"];
+export const PROTOCOLS: readonly Protocol[] = ["ssh", "telnet", "rdp"];
+export const AUTH_METHODS: readonly AuthMethod[] = ["pubkey", "userpass", "none"];
+export const RDP_CERTS: readonly RdpCert[] = ["tofu", "ignore", "deny"];
 export const SORT_COLUMNS: readonly SortColumn[] = [
   "name",
+  "protocol",
   "hostname",
   "ipv4",
   "user",
@@ -48,16 +67,48 @@ export const SORT_COLUMNS: readonly SortColumn[] = [
 ];
 export const SORT_DIRECTIONS: readonly SortDirection[] = ["asc", "desc"];
 
+/** Auth methods each protocol supports, in the order the form shows them. The first one is the default. */
+export const PROTOCOL_AUTH: Record<Protocol, readonly AuthMethod[]> = {
+  ssh: ["pubkey", "userpass"],
+  telnet: ["none", "userpass"],
+  rdp: ["userpass"],
+};
+
+/** Well-known port per protocol (used when a server sets none). */
+export const PROTOCOL_PORT: Record<Protocol, number> = { ssh: 22, telnet: 23, rdp: 3389 };
+
+export interface RdpSettings {
+  domain?: string;
+  /** `auto` (dynamic resolution), `fullscreen`, or `<width>x<height>`. */
+  resolution?: string;
+  cert?: RdpCert;
+  /** Share the clipboard (`+clipboard`). */
+  clipboard?: boolean;
+  /** Local directory shared with the remote as a drive. */
+  drive?: string;
+}
+
 export interface ServerEntry {
   /** Unique, human readable identifier. Also used to derive the tmux session name. */
   name: string;
+  /** Missing means ssh. */
+  protocol?: Protocol;
   hostname?: string;
   ipv4?: string;
   /** Login user. Falls back to `defaults.user`, then to ssh's own default. */
   user?: string;
   /** Path to the private key (never read by the app, only passed to `ssh -i`). */
   identity_file?: string;
+  /** Missing means the protocol's first auth method (`PROTOCOL_AUTH`). */
+  auth?: AuthMethod;
+  /**
+   * Base64-encoded password for `auth: userpass`. Base64 is an encoding, not
+   * encryption: anyone who can read the config file can read the password.
+   */
+  password_b64?: string;
   port?: number;
+  /** Only used when `protocol: rdp`. */
+  rdp?: RdpSettings;
   description?: string;
   tags: string[];
   /** How many times a *new* ssh session has been started for this server. */
@@ -99,6 +150,8 @@ export interface Defaults {
   terminal_command?: string;
   /** Extra arguments appended to every ssh invocation, e.g. `["-o", "ServerAliveInterval=30"]`. */
   ssh_options: string[];
+  /** Extra arguments appended to every RDP client invocation, e.g. `["/sound"]`. */
+  rdp_options: string[];
   tmux: TmuxDefaults;
   sort: SortDefaults;
 }
@@ -120,6 +173,7 @@ export function defaultDefaults(): Defaults {
     launch: "auto",
     terminal_command: undefined,
     ssh_options: [],
+    rdp_options: [],
     tmux: { session_prefix: "ssh-", hold_on_error: true },
     sort: { column: "name", direction: "asc" },
   };
@@ -136,4 +190,14 @@ export function newServer(name = ""): ServerEntry {
 /** Deep-clone a config (plain data, so structured clone is enough). */
 export function cloneConfig(config: Config): Config {
   return structuredClone(config);
+}
+
+export function protocolOf(server: ServerEntry): Protocol {
+  return server.protocol ?? "ssh";
+}
+
+/** The effective auth method: the configured one when the protocol supports it, else the protocol default. */
+export function authOf(server: ServerEntry): AuthMethod {
+  const allowed = PROTOCOL_AUTH[protocolOf(server)];
+  return server.auth && allowed.includes(server.auth) ? server.auth : allowed[0]!;
 }

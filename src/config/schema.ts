@@ -6,16 +6,25 @@
  * Recoverable problems (unknown launch mode, negative counters, ...) are coerced
  * and reported as warnings so the app can still start.
  */
+import { decodePassword } from "./secret.ts";
 import {
+  AUTH_METHODS,
   CONNECT_VIA,
   LAUNCH_MODES,
+  PROTOCOLS,
+  PROTOCOL_AUTH,
+  RDP_CERTS,
   SORT_COLUMNS,
   SORT_DIRECTIONS,
   defaultDefaults,
+  type AuthMethod,
   type Config,
   type ConnectVia,
   type Defaults,
   type LaunchMode,
+  type Protocol,
+  type RdpCert,
+  type RdpSettings,
   type ServerEntry,
   type SortColumn,
   type SortDirection,
@@ -150,6 +159,7 @@ export function normalizeDefaults(raw: unknown, warnings: string[], path = "defa
     launch: enumValue<LaunchMode>(raw.launch, LAUNCH_MODES, base.launch, `${path}.launch`, warnings),
     terminal_command: optString(raw.terminal_command, `${path}.terminal_command`, warnings),
     ssh_options: stringList(raw.ssh_options, `${path}.ssh_options`, warnings),
+    rdp_options: stringList(raw.rdp_options, `${path}.rdp_options`, warnings),
     tmux: {
       session_prefix: optString(tmuxRaw.session_prefix, `${path}.tmux.session_prefix`, warnings) ?? base.tmux.session_prefix,
       hold_on_error: optBoolean(tmuxRaw.hold_on_error, base.tmux.hold_on_error, `${path}.tmux.hold_on_error`, warnings),
@@ -167,6 +177,33 @@ export function normalizeDefaults(raw: unknown, warnings: string[], path = "defa
   };
 }
 
+const RESOLUTION_RE = /^(auto|fullscreen|\d{2,5}x\d{2,5})$/;
+
+export function isValidResolution(value: string): boolean {
+  return RESOLUTION_RE.test(value);
+}
+
+function normalizeRdp(raw: unknown, path: string, warnings: string[]): RdpSettings | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!isRecord(raw)) {
+    warnings.push(`${path}: expected a mapping, ignoring`);
+    return undefined;
+  }
+  let resolution = optString(raw.resolution, `${path}.resolution`, warnings);
+  if (resolution !== undefined && !isValidResolution(resolution)) {
+    warnings.push(`${path}.resolution: expected auto, fullscreen or <width>x<height>, ignoring "${resolution}"`);
+    resolution = undefined;
+  }
+  const rdp: RdpSettings = {
+    domain: optString(raw.domain, `${path}.domain`, warnings),
+    resolution,
+    cert: raw.cert === undefined || raw.cert === null ? undefined : enumValue<RdpCert>(raw.cert, RDP_CERTS, "tofu", `${path}.cert`, warnings),
+    clipboard: raw.clipboard === undefined || raw.clipboard === null ? undefined : optBoolean(raw.clipboard, true, `${path}.clipboard`, warnings),
+    drive: optString(raw.drive, `${path}.drive`, warnings),
+  };
+  return Object.values(rdp).some((v) => v !== undefined) ? rdp : undefined;
+}
+
 export function normalizeServer(raw: unknown, index: number, warnings: string[]): ServerEntry {
   const path = `servers[${index}]`;
   if (!isRecord(raw)) throw new ConfigError("each server must be a mapping", path);
@@ -182,13 +219,38 @@ export function normalizeServer(raw: unknown, index: number, warnings: string[])
     warnings.push(`${path}.ipv4: "${ipv4}" is not a valid IPv4 address (kept as-is)`);
   }
 
+  const protocol =
+    raw.protocol === undefined || raw.protocol === null
+      ? undefined
+      : enumValue<Protocol>(raw.protocol, PROTOCOLS, "ssh", `${path}.protocol`, warnings);
+
+  let auth =
+    raw.auth === undefined || raw.auth === null
+      ? undefined
+      : enumValue<AuthMethod>(raw.auth, AUTH_METHODS, PROTOCOL_AUTH[protocol ?? "ssh"][0]!, `${path}.auth`, warnings);
+  if (auth && !PROTOCOL_AUTH[protocol ?? "ssh"].includes(auth)) {
+    const fallback = PROTOCOL_AUTH[protocol ?? "ssh"][0]!;
+    warnings.push(`${path}.auth: "${auth}" is not supported for ${protocol ?? "ssh"}; using "${fallback}"`);
+    auth = fallback;
+  }
+
+  let password_b64 = optString(raw.password_b64, `${path}.password_b64`, warnings);
+  if (password_b64 !== undefined && decodePassword(password_b64) === undefined) {
+    warnings.push(`${path}.password_b64: not valid base64, ignoring the stored password`);
+    password_b64 = undefined;
+  }
+
   const server: ServerEntry = {
     name,
+    protocol,
     hostname: optString(raw.hostname, `${path}.hostname`, warnings),
     ipv4,
     user: optString(raw.user, `${path}.user`, warnings),
     identity_file: optString(raw.identity_file, `${path}.identity_file`, warnings),
+    auth,
+    password_b64,
     port: optPort(raw.port, `${path}.port`, warnings),
+    rdp: normalizeRdp(raw.rdp, `${path}.rdp`, warnings),
     description: optString(raw.description, `${path}.description`, warnings),
     tags: stringList(raw.tags, `${path}.tags`, warnings),
     connections: counter(raw.connections, `${path}.connections`, warnings),

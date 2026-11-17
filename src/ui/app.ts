@@ -23,7 +23,7 @@ import type { ProcessRunner } from "../util/shell.ts";
 import { CONFIG_FIELDS, defaultsToValues, validateDefaults, valuesToDefaults } from "./configPane.ts";
 import { ConfirmModal, MessageModal, helpBody } from "./dialogs.ts";
 import { displayWidth, fit, truncate } from "./format.ts";
-import { FormModal, Modal, chunk } from "./modal.ts";
+import { FormModal, Modal, chunk, type FormValues } from "./modal.ts";
 import { serverFormFields, serverFormValidator, serverToValues, valuesToServer } from "./serverForm.ts";
 import { COLUMN_BY_HOTKEY, ROW_PREFIX_WIDTH, filterServers, layoutColumns, sortIndicator, sortServers, type LaidOutColumn } from "./table.ts";
 import { theme } from "./theme.ts";
@@ -352,31 +352,59 @@ export class App {
     this.render();
   }
 
-  openServerForm(existing?: ServerEntry): void {
+  /** `draft` re-opens the form with values the user already typed (e.g. after backing out of a warning). */
+  openServerForm(existing?: ServerEntry, draft?: FormValues): void {
     const names = this.config.servers.map((s) => s.name);
     const modal = new FormModal(this.renderer, {
       title: existing ? `Edit server: ${existing.name}` : "Add server",
-      fields: serverFormFields(this.config.defaults),
-      values: serverToValues(existing ?? newServer()),
-      validate: serverFormValidator(names, existing?.name),
+      fields: serverFormFields(this.config.defaults, this.launcher.clients()),
+      values: draft ?? serverToValues(existing ?? newServer()),
+      initialFocus: "name",
+      validate: serverFormValidator(names, existing?.name, this.config.defaults.user),
       onSubmit: (values) => {
         const saved = valuesToServer(values, existing);
-        if (existing) {
-          const idx = this.config.servers.indexOf(existing);
-          if (idx >= 0) this.config.servers[idx] = saved;
-          else this.config.servers.push(saved);
-        } else {
-          this.config.servers.push(saved);
-        }
-        this.closeModal();
-        if (this.persist()) this.setMessage(`${existing ? "Updated" : "Added"} ${saved.name}`, "ok");
-        this.refreshSessions(false);
-        this.recompute(saved.name);
-        this.render();
+        const newPassword = saved.password_b64 !== undefined && saved.password_b64 !== existing?.password_b64;
+        if (newPassword) this.confirmStorePassword(saved, existing, values);
+        else this.saveServer(saved, existing);
       },
       onCancel: () => this.closeModal(),
     });
     this.showModal(modal);
+  }
+
+  /** Storing a password is opt-in every time it is set or changed: base64 is not encryption. */
+  private confirmStorePassword(saved: ServerEntry, existing: ServerEntry | undefined, draft: FormValues): void {
+    const modal = new ConfirmModal(this.renderer, {
+      title: "Unsafe: store password?",
+      message: [
+        `The password for "${saved.name}" would be stored base64-encoded in`,
+        `${contractHome(this.store.path)}. Base64 is NOT encryption: anyone who can`,
+        "read the file (backups, dotfile repos, screen shares) can read the password.",
+        "Prefer key-based auth where you can.",
+      ],
+      confirmLabel: "store anyway",
+      cancelLabel: "back",
+      danger: true,
+      alternative: { key: "w", label: "save without password (ask on connect)", onSelect: () => this.saveServer({ ...saved, password_b64: undefined }, existing) },
+      onConfirm: () => this.saveServer(saved, existing),
+      onCancel: () => this.openServerForm(existing, draft),
+    });
+    this.showModal(modal);
+  }
+
+  private saveServer(saved: ServerEntry, existing?: ServerEntry): void {
+    if (existing) {
+      const idx = this.config.servers.indexOf(existing);
+      if (idx >= 0) this.config.servers[idx] = saved;
+      else this.config.servers.push(saved);
+    } else {
+      this.config.servers.push(saved);
+    }
+    this.closeModal();
+    if (this.persist()) this.setMessage(`${existing ? "Updated" : "Added"} ${saved.name}`, saved.password_b64 ? "warn" : "ok");
+    this.refreshSessions(false);
+    this.recompute(saved.name);
+    this.render();
   }
 
   confirmDelete(): void {
@@ -403,6 +431,10 @@ export class App {
   confirmKill(): void {
     const server = this.currentServer;
     if (!server) return;
+    if (this.launcher.isWindowed(server)) {
+      this.setMessage(`${server.name} is an RDP server; close its window to end the session`, "info");
+      return;
+    }
     if (!this.active.has(server.name)) {
       this.setMessage(`No tmux session for ${server.name}`, "info");
       return;
@@ -431,10 +463,14 @@ export class App {
       ? `tmux ${tmux.version() ?? "?"} found${tmux.isInside() ? " · running inside tmux (sessions open via switch-client)" : ""}`
       : "tmux not found: sessions run inline and cannot be resumed";
     const terminal = detectTerminal(this.config.defaults.terminal_command, this.runner);
+    this.launcher.recheckClients();
+    const clients = this.launcher.clients();
+    const mark = (ok: boolean) => (ok ? "✓" : "✗");
     const info = [
       `Config: ${contractHome(this.store.path)}`,
       `Sessions: ${tmuxStatus}`,
       `Terminal: ${terminal ? terminal.label : "none detected – set Terminal cmd for launch: terminal"}`,
+      `Clients: ssh ${mark(clients.ssh)} · telnet ${mark(clients.telnet)} (expect ${mark(clients.expect)}) · rdp ${clients.rdp ?? "✗ (xfreerdp3 not found)"}`,
     ];
     const modal = new FormModal(this.renderer, {
       title: "Settings · defaults",
@@ -540,7 +576,7 @@ export class App {
     // input that the action below focuses (e.g. "a" opening the add form).
     key.preventDefault();
 
-    if (lower.length === 1 && lower >= "1" && lower <= "9") {
+    if (lower.length === 1 && lower >= "0" && lower <= "9") {
       const column = COLUMN_BY_HOTKEY.get(lower);
       if (column) this.setSort(column.key);
       return;
@@ -685,6 +721,7 @@ export class App {
         if (col.def.key === "description" || col.def.key === "last_connected" || col.def.key === "identity_file") color = theme.dim;
         if (col.def.key === "name") color = theme.headerFg;
         if (col.def.key === "hostname" || col.def.key === "ipv4") color = theme.accent;
+        if (col.def.key === "identity_file" && server.password_b64) color = theme.warn;
         line.push(chunk(fit(value, col.width, col.def.align), selected ? theme.selectedFg : color, { bold: selected && col.def.key === "name" }));
         if (ci < columns.length - 1) line.push(chunk(GAP));
       });

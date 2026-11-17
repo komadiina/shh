@@ -9,6 +9,7 @@ defaults:
   launch: auto                      # auto | tmux | inline | terminal
   terminal_command: ""              # e.g. "alacritty -e {cmd}"; empty = auto-detect
   ssh_options: ["-o", "ServerAliveInterval=30"]
+  rdp_options: []                   # extra xfreerdp3 arguments, e.g. ["/sound"]
   tmux:
     session_prefix: "ssh-"
     hold_on_error: true
@@ -35,4 +36,24 @@ servers:
   - name: bastion
     hostname: bastion            # a Host alias from ~/.ssh/config works too
     description: Jump host (Host alias from ~/.ssh/config)
+    connections: 0
+  - name: switch-01
+    protocol: telnet                # ssh (default) | telnet | rdp
+    ipv4: 10.0.0.20
+    user: admin
+    auth: userpass                  # pubkey | userpass | none (telnet)
+    description: Core switch (password asked on connect)
+    connections: 0
+  - name: win-01
+    protocol: rdp
+    hostname: win-01.corp.example.com
+    user: admin
+    # password_b64: ...             # base64, NOT encrypted; set it from the TUI (it warns you)
+    rdp:
+      domain: CORP
+      resolution: auto              # auto | fullscreen | <width>x<height>
+      cert: tofu                    # tofu | ignore | deny
+      clipboard: true
+      drive: ~/share
+    description: Windows jump box
     connections: 0

@@ -31,6 +31,8 @@ defaults:
   terminal_command: ""
   # Extra arguments for every ssh call.
   ssh_options: []
+  # Extra arguments for every RDP (xfreerdp3) call, e.g. ["/sound"].
+  rdp_options: []
   tmux:
     session_prefix: "ssh-"
     hold_on_error: true
@@ -53,11 +55,15 @@ servers:
 /** Order in which server keys are written for new entries. */
 const SERVER_KEY_ORDER: (keyof ServerEntry)[] = [
   "name",
+  "protocol",
   "hostname",
   "ipv4",
   "user",
   "identity_file",
+  "auth",
+  "password_b64",
   "port",
+  "rdp",
   "description",
   "tags",
   "connect_via",
@@ -129,6 +135,9 @@ export class ConfigStore {
     map.set("launch", defaults.launch);
     setOrDelete(map, "terminal_command", defaults.terminal_command ?? "");
     map.set("ssh_options", doc.createNode(defaults.ssh_options, { flow: true }));
+    if (defaults.rdp_options.length > 0 || map.has("rdp_options")) {
+      map.set("rdp_options", doc.createNode(defaults.rdp_options, { flow: true }));
+    }
 
     let tmux = map.get("tmux");
     if (!isMap(tmux)) {
@@ -174,6 +183,12 @@ export class ConfigStore {
         if (key === "tags") {
           if (server.tags.length === 0) map.delete("tags");
           else map.set("tags", doc.createNode(server.tags, { flow: true }));
+          continue;
+        }
+        if (key === "rdp") {
+          const rdp = Object.fromEntries(Object.entries(server.rdp ?? {}).filter(([, v]) => v !== undefined && v !== ""));
+          if (Object.keys(rdp).length === 0) map.delete("rdp");
+          else map.set("rdp", doc.createNode(rdp));
           continue;
         }
         if (key === "connections") {

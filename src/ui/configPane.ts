@@ -22,6 +22,7 @@ export const CONFIG_FIELDS: FieldSpec[] = [
   { kind: "choice", key: "launch", label: "Launch mode", options: LAUNCH_MODES, help: "auto: tmux if installed else inline · terminal: new emulator window" },
   { kind: "text", key: "terminal_command", label: "Terminal cmd", placeholder: "alacritty -e {cmd}  (auto-detect when empty)", help: "Template for launch: terminal; {cmd} = the command to run" },
   { kind: "text", key: "ssh_options", label: "ssh options", placeholder: "-o ServerAliveInterval=30", help: "Extra arguments for every ssh call (shell quoting allowed)" },
+  { kind: "text", key: "rdp_options", label: "rdp options", placeholder: "/sound +fonts", help: "Extra arguments for every xfreerdp3 call (shell quoting allowed)" },
   { kind: "text", key: "session_prefix", label: "tmux prefix", placeholder: "ssh-", help: "tmux session name = prefix + server name" },
   { kind: "toggle", key: "hold_on_error", label: "Hold on error", help: "Keep the tmux window open when ssh fails, so the error can be read" },
   { kind: "choice", key: "sort_column", label: "Sort column", options: SORT_COLUMNS, help: "Sort applied when the app starts" },
@@ -37,6 +38,7 @@ export function defaultsToValues(d: Defaults): FormValues {
     launch: d.launch,
     terminal_command: d.terminal_command ?? "",
     ssh_options: shellJoin(d.ssh_options),
+    rdp_options: shellJoin(d.rdp_options),
     session_prefix: d.tmux.session_prefix,
     hold_on_error: d.tmux.hold_on_error,
     sort_column: d.sort.column,
@@ -60,6 +62,7 @@ export function valuesToDefaults(values: FormValues, base: Defaults): Defaults {
     launch: str(values, "launch") as LaunchMode,
     terminal_command: str(values, "terminal_command") || undefined,
     ssh_options: shellSplit(str(values, "ssh_options")),
+    rdp_options: shellSplit(str(values, "rdp_options")),
     tmux: {
       session_prefix: str(values, "session_prefix"),
       hold_on_error: values.hold_on_error === true,

@@ -95,7 +95,7 @@ describe("table screen", () => {
     const text = await frame();
     expect(text).toContain("sshtui · 3 servers");
     expect(text).toContain("Name ▲"); // default sort indicator
-    expect(text).toContain("web-01.example.com");
+    expect(text).toContain("web-01.example");
     expect(text).toContain("Postgres primary");
     expect(text).toContain("connect/resume");
     expect(text).toContain("1 Name▲");
@@ -204,6 +204,7 @@ describe("server form", () => {
     setup.mockInput.pressTab(); // ipv4
     setup.mockInput.pressTab(); // user
     await setup.mockInput.typeText("root");
+    setup.mockInput.pressTab(); // auth
     setup.mockInput.pressTab(); // key
     setup.mockInput.pressTab(); // port
     await setup.mockInput.typeText("2x2"); // letters are ignored in number fields
@@ -289,6 +290,8 @@ describe("settings pane", () => {
     setup.mockInput.pressTab(); // terminal cmd
     setup.mockInput.pressTab(); // ssh options
     await setup.mockInput.typeText('-o "ServerAliveInterval=30"');
+    setup.mockInput.pressTab(); // rdp options
+    await setup.mockInput.typeText("/sound");
     setup.mockInput.pressTab(); // prefix
     setup.mockInput.pressTab(); // hold on error
     setup.mockInput.pressKey(" "); // true → false
@@ -301,6 +304,7 @@ describe("settings pane", () => {
     expect(saved.defaults.connect_via).toBe("ipv4");
     expect(saved.defaults.launch).toBe("tmux");
     expect(saved.defaults.ssh_options).toEqual(["-o", "ServerAliveInterval=30"]);
+    expect(saved.defaults.rdp_options).toEqual(["/sound"]);
     expect(saved.defaults.tmux.hold_on_error).toBe(false);
     expect(app.config.defaults.user).toBe("admin");
   });
@@ -356,5 +360,114 @@ describe("narrow terminal", () => {
     expect(text).toContain("Name ▲");
     expect(text).not.toContain("Description");
     expect(rowOrder(text)).toEqual(["bastion", "db-01", "web-01"]);
+  });
+});
+
+describe("protocols and stored passwords", () => {
+  async function fillUserpassForm(password: string): Promise<string> {
+    setup.mockInput.pressKey("a");
+    await setup.mockInput.typeText("pw-box");
+    setup.mockInput.pressTab(); // hostname
+    await setup.mockInput.typeText("pw.example.com");
+    setup.mockInput.pressTab(); // ipv4
+    setup.mockInput.pressTab(); // user
+    await setup.mockInput.typeText("root");
+    setup.mockInput.pressTab(); // auth
+    setup.mockInput.pressKey("ARROW_RIGHT"); // PUBKEY → USERPASS
+    setup.mockInput.pressTab(); // password (the key field is hidden now)
+    await setup.mockInput.typeText(password);
+    return frame();
+  }
+
+  function savedEntry(name: string) {
+    return parse(readFileSync(store.path, "utf8")).servers.find((s: { name: string }) => s.name === name);
+  }
+
+  test("auth is a highlighted segmented box; the password is masked and needs confirmation", async () => {
+    let text = await fillUserpassForm("s3cret");
+    expect(text).toContain("[USERPASS]");
+    expect(text).toContain(" PUBKEY ");
+    expect(text).not.toContain("PUBKEY✗");
+    expect(text).not.toContain("Private key");
+    expect(text).toContain("••••••");
+    expect(text).not.toContain("s3cret");
+    expect(text).toContain("NOT encrypted");
+
+    setup.mockInput.pressKey("s", { ctrl: true });
+    text = await frame();
+    expect(text).toContain("Unsafe: store password?");
+    expect(text).toContain("Base64 is NOT encryption");
+    expect(savedEntry("pw-box")).toBeUndefined();
+
+    setup.mockInput.pressKey("y");
+    text = await frame();
+    expect(text).toContain("Added pw-box");
+    expect(text).toContain("pass (stored)");
+    expect(savedEntry("pw-box")).toMatchObject({ auth: "userpass", user: "root", password_b64: Buffer.from("s3cret").toString("base64") });
+  });
+
+  test("the warning can save without the password or go back to the form", async () => {
+    await fillUserpassForm("s3cret");
+    setup.mockInput.pressKey("s", { ctrl: true });
+    await pressEscape(); // back to the form, typed values kept
+    let text = await frame();
+    expect(text).toContain("Add server");
+    expect(text).toContain("pw.example.com");
+    expect(text).toContain("••••••");
+
+    setup.mockInput.pressKey("s", { ctrl: true });
+    setup.mockInput.pressKey("w"); // save without the password
+    text = await frame();
+    expect(text).toContain("Added pw-box");
+    expect(text).toContain("pass (ask)");
+    const entry = savedEntry("pw-box");
+    expect(entry.auth).toBe("userpass");
+    expect(entry).not.toHaveProperty("password_b64");
+  });
+
+  test("RDP is disabled without xfreerdp3; with it the form swaps in RDP fields", async () => {
+    setup.mockInput.pressKey("a");
+    setup.mockInput.pressKey("ARROW_UP"); // name → protocol
+    setup.mockInput.pressKey("ARROW_RIGHT"); // telnet and rdp are not installed: stays on ssh
+    let text = await frame();
+    expect(text).toContain("[SSH]");
+    expect(text).toContain(" RDP✗");
+    expect(text).toContain("telnet not found · xfreerdp3 not found");
+    await pressEscape();
+
+    runner.available.add("xfreerdp3");
+    runner.available.add("telnet");
+    app["launcher"].recheckClients();
+    setup.mockInput.pressKey("a");
+    setup.mockInput.pressKey("ARROW_UP");
+    setup.mockInput.pressKey("ARROW_RIGHT"); // telnet
+    text = await frame();
+    expect(text).toContain("[TELNET]");
+    expect(text).toContain("[NONE]");
+    expect(text).toContain("USERPASS✗"); // greyed out: telnet logins need expect
+    setup.mockInput.pressKey("ARROW_RIGHT"); // rdp
+    text = await frame();
+    expect(text).toContain("[RDP]");
+    expect(text).toContain("[USERPASS]");
+    expect(text).toContain("Domain");
+    expect(text).toContain("Resolution");
+    expect(text).not.toContain("Private key");
+  });
+
+  test("an RDP server opens a window with the password on stdin and has no tmux session to kill", async () => {
+    runner.available.add("xfreerdp3");
+    app["launcher"].recheckClients();
+    app.config.servers.push({ name: "aaa-win", protocol: "rdp", hostname: "win.corp", user: "admin", password_b64: Buffer.from("pw").toString("base64"), tags: [], connections: 0 });
+    app.recompute("aaa-win");
+    app.render();
+    setup.mockInput.pressEnter();
+    await setup.waitFor(() => runner.detached.length > 0);
+    expect(runner.detached[0]).toEqual(["xfreerdp3", "/args-from:stdin"]);
+    expect(runner.detachedStdin[0]).toContain("/p:pw\n");
+    let text = await frame();
+    expect(text).toContain("Opened RDP window for admin@win.corp");
+    setup.mockInput.pressKey("K", { shift: true });
+    text = await frame();
+    expect(text).toContain("close its window");
   });
 });

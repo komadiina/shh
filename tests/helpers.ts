@@ -5,6 +5,7 @@ export class FakeRunner implements ProcessRunner {
   sessions = new Set<string>();
   commands: string[][] = [];
   detached: string[][] = [];
+  detachedStdin: Array<string | undefined> = [];
   inherit: string[][] = [];
   available = new Set<string>(["tmux", "ssh"]);
   inheritExitCode = 0;
@@ -44,8 +45,21 @@ export class FakeRunner implements ProcessRunner {
   commandExists(name: string): boolean {
     return this.available.has(name);
   }
-  spawnDetached(argv: readonly string[]): void {
+  spawnDetached(argv: readonly string[], options: { stdin?: string } = {}): void {
     this.detached.push([...argv]);
+    this.detachedStdin.push(options.stdin);
   }
 }
 
+
+/** Secret stager that records what it was asked to stage instead of touching the disk. */
+export class FakeStager {
+  staged: string[] = [];
+  stage(secret: string): string {
+    this.staged.push(secret);
+    return `/run/sshtui/secret-${this.staged.length}`;
+  }
+  helper(name: string): string {
+    return `/run/sshtui/${name}`;
+  }
+}
