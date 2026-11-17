@@ -1,5 +1,5 @@
 /**
- * sshtui entry point.
+ * shh entry point.
  */
 import { createCliRenderer } from "@opentui/core";
 import { CliError, parseArgs, USAGE } from "./cli.ts";
@@ -59,7 +59,7 @@ async function main(): Promise<number> {
     return 0;
   }
   if (options.version) {
-    console.log(`sshtui ${VERSION}`);
+    console.log(`shh ${VERSION}`);
     return 0;
   }
 
@@ -121,7 +121,7 @@ async function main(): Promise<number> {
   }
 
   if (!process.stdout.isTTY || !process.stdin.isTTY) {
-    console.error("sshtui needs an interactive terminal. Try --list or --connect <name> for non-interactive use.");
+    console.error("shh needs an interactive terminal. Try --list or --connect <name> for non-interactive use.");
     return 1;
   }
 

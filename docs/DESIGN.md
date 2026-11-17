@@ -18,7 +18,7 @@ Why lockfiles cannot provide "resume":
   process that owns the pty independently of any terminal window. That is
   exactly what a terminal multiplexer (tmux, screen, dtach/abduco) is.
 - Lockfiles also go stale (crash, reboot, `kill -9`) and need PID checks, a
-  cleanup policy and handling for races between two sshtui instances. tmux
+  cleanup policy and handling for races between two shh instances. tmux
   already answers "is session X alive?" atomically (`tmux has-session -t =X`).
 
 So:

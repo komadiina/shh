@@ -63,7 +63,7 @@ function rowOrder(text: string): string[] {
 }
 
 beforeEach(async () => {
-  const dir = mkdtempSync(join(tmpdir(), "sshtui-ui-"));
+  const dir = mkdtempSync(join(tmpdir(), "shh-ui-"));
   store = new ConfigStore(join(dir, "config.yaml"));
   writeFileSync(store.path, CONFIG);
   const loaded = store.load();
@@ -93,7 +93,7 @@ afterEach(async () => {
 describe("table screen", () => {
   test("renders header, rows, defaults in title and hotkey bars", async () => {
     const text = await frame();
-    expect(text).toContain("sshtui · 3 servers");
+    expect(text).toContain("shh · 3 servers");
     expect(text).toContain("Name ▲"); // default sort indicator
     expect(text).toContain("web-01.example");
     expect(text).toContain("Postgres primary");

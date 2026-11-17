@@ -57,9 +57,9 @@ export class FakeStager {
   staged: string[] = [];
   stage(secret: string): string {
     this.staged.push(secret);
-    return `/run/sshtui/secret-${this.staged.length}`;
+    return `/run/shh/secret-${this.staged.length}`;
   }
   helper(name: string): string {
-    return `/run/sshtui/${name}`;
+    return `/run/shh/${name}`;
   }
 }

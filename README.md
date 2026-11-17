@@ -1,4 +1,4 @@
-# sshtui
+# shh
 
 A keyboard-driven terminal UI for your SSH servers, built with
 [OpenTUI](https://opentui.com) and Bun.
@@ -31,7 +31,7 @@ More: [filter & sort](docs/screenshots/02-sorted-filtered.png) ·
 ```sh
 # needs Bun ≥ 1.3.14 (https://bun.sh) and ssh; tmux recommended
 bun install
-bun run start            # first run creates ~/.config/sshtui/config.yaml
+bun run start            # first run creates ~/.config/shh/config.yaml
 ```
 
 Press `?` in the app for the keys. Full documentation:
@@ -43,7 +43,7 @@ lockfiles): [docs/DESIGN.md](docs/DESIGN.md).
 ```sh
 bun link                 # runs from source; needs Bun
 # or a standalone binary (build on the target OS/CPU):
-bun run build && install -m 755 dist/sshtui ~/.local/bin/sshtui
+bun run build && install -m 755 dist/shh ~/.local/bin/shh
 ```
 
 ## Development

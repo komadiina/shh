@@ -71,7 +71,7 @@ describe("config: protocols and credentials", () => {
   });
 
   test("store writes the new keys in order and drops empty ones", () => {
-    const dir = mkdtempSync(join(tmpdir(), "sshtui-proto-"));
+    const dir = mkdtempSync(join(tmpdir(), "shh-proto-"));
     const store = new ConfigStore(join(dir, "config.yaml"));
     const { config } = store.load();
     config.servers = [
@@ -167,8 +167,8 @@ describe("launcher: passwords never reach argv", () => {
     expect(stager.staged).toEqual([PASSWORD]);
     const argv = runner.inherit[0]!;
     expect(argv.slice(0, 2)).toEqual(["sh", "-c"]);
-    expect(argv[2]).toContain("SSHTUI_SECRET=$(cat /run/sshtui/secret-1); rm -f /run/sshtui/secret-1;");
-    expect(argv[2]).toContain("SSH_ASKPASS=/run/sshtui/askpass SSH_ASKPASS_REQUIRE=force");
+    expect(argv[2]).toContain("SHH_SECRET=$(cat /run/shh/secret-1); rm -f /run/shh/secret-1;");
+    expect(argv[2]).toContain("SSH_ASKPASS=/run/shh/askpass SSH_ASKPASS_REQUIRE=force");
     expect(argv.join(" ")).not.toContain("hunter2");
     expect(outcome.newSession).toBe(true);
   });
@@ -187,7 +187,7 @@ describe("launcher: passwords never reach argv", () => {
     const created = runner.commands.find((c) => c[1] === "new-session")!;
     expect(created.join(" ")).not.toContain("hunter2");
     expect(created.join(" ")).toContain("SSH_ASKPASS_REQUIRE=force");
-    expect(created.join(" ")).toContain("[sshtui] ssh exited");
+    expect(created.join(" ")).toContain("[shh] ssh exited");
     await launcher.launch(s, defaultDefaults(), noopHost); // resume
     expect(stager.staged.length).toBe(1);
   });
@@ -211,7 +211,7 @@ describe("launcher: passwords never reach argv", () => {
 
     const { runner, launcher } = setup(["ssh", "telnet", "expect"]);
     await launcher.launch(s, inlineDefaults(), noopHost);
-    expect(runner.inherit[0]![2]).toContain("expect -f /run/sshtui/telnet-login admin telnet -l admin box.example.com");
+    expect(runner.inherit[0]![2]).toContain("expect -f /run/shh/telnet-login admin telnet -l admin box.example.com");
     expect(runner.inherit[0]!.join(" ")).not.toContain("hunter2");
   });
 
@@ -248,7 +248,7 @@ describe("launcher: passwords never reach argv", () => {
 
 describe("FileSecretStager (real files)", () => {
   test("private dir, 0600 secret, askpass hands the password to the client and the file is gone", () => {
-    const dir = join(mkdtempSync(join(tmpdir(), "sshtui-secret-")), "rt");
+    const dir = join(mkdtempSync(join(tmpdir(), "shh-secret-")), "rt");
     const stager = new FileSecretStager(dir);
     // a stand-in for ssh: asks $SSH_ASKPASS like ssh would and prints the answer
     const fakeSsh = join(dir, "..", "fake-ssh");

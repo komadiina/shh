@@ -3,7 +3,7 @@
  * environment or a long-lived file.
  *
  * The launcher stages the password in a 0600 file inside a private 0700 runtime
- * directory. The session's shell reads it into `$SSHTUI_SECRET` and deletes the
+ * directory. The session's shell reads it into `$SHH_SECRET` and deletes the
  * file before the client starts; the helper scripts below read the variable.
  */
 import { randomBytes } from "node:crypto";
@@ -21,14 +21,14 @@ export interface SecretStager {
 }
 
 /**
- * `SSH_ASKPASS` helper. Answers password prompts from `$SSHTUI_SECRET`; anything
+ * `SSH_ASKPASS` helper. Answers password prompts from `$SHH_SECRET`; anything
  * else (e.g. host key confirmation) is asked on the terminal.
  */
 export const ASKPASS_SCRIPT = `#!/bin/sh
-# sshtui askpass helper (generated)
+# shh askpass helper (generated)
 case "$1" in
   *[Pp]assword*)
-    printf '%s\\n' "$SSHTUI_SECRET"
+    printf '%s\\n' "$SHH_SECRET"
     ;;
   *)
     printf '%s ' "$1" >/dev/tty
@@ -42,9 +42,9 @@ esac
  * expect script for telnet. Usage: `expect -f telnet-login <user> telnet args...`.
  * Answers the first login and password prompts, then hands the session to the user.
  */
-export const TELNET_LOGIN_SCRIPT = `# sshtui telnet login helper (generated)
+export const TELNET_LOGIN_SCRIPT = `# shh telnet login helper (generated)
 set secret ""
-if {[info exists ::env(SSHTUI_SECRET)]} { set secret $::env(SSHTUI_SECRET); unset ::env(SSHTUI_SECRET) }
+if {[info exists ::env(SHH_SECRET)]} { set secret $::env(SHH_SECRET); unset ::env(SHH_SECRET) }
 set user [lindex $argv 0]
 set timeout 30
 spawn -noecho {*}[lrange $argv 1 end]
@@ -68,9 +68,9 @@ const HELPERS: Record<HelperName, { file: string; content: string; mode: number 
 
 export function runtimeDir(env: NodeJS.ProcessEnv = process.env): string {
   const base = env.XDG_RUNTIME_DIR?.trim();
-  if (base) return join(base, "sshtui");
+  if (base) return join(base, "shh");
   const uid = typeof process.getuid === "function" ? process.getuid() : "user";
-  return join(tmpdir(), `sshtui-${uid}`);
+  return join(tmpdir(), `shh-${uid}`);
 }
 
 export class FileSecretStager implements SecretStager {

@@ -170,7 +170,7 @@ export class App {
     this.renderer.on("focus", this.onFocus);
     this.renderer.once("destroy", () => this.dispose());
     try {
-      this.renderer.setTerminalTitle("sshtui");
+      this.renderer.setTerminalTitle("shh");
     } catch {
       // cosmetic; some terminals / the test renderer reject title changes before the first frame
     }
@@ -670,7 +670,7 @@ export class App {
     const mode = this.launcher.resolveMode(this.config.defaults).mode;
     const modeText = mode === "tmux" ? `tmux${tmux.isInside() ? " (inside)" : ""}` : mode === "terminal" ? "new terminal window" : "inline (no persistence)";
     parts.push(modeText);
-    this.frame.title = ` sshtui · ${parts.join(" · ")} `;
+    this.frame.title = ` shh · ${parts.join(" · ")} `;
     const msg = this.message && this.message.until > Date.now() ? this.message : null;
     if (msg) {
       const icon = msg.kind === "error" ? "✗ " : msg.kind === "warn" ? "! " : msg.kind === "ok" ? "✓ " : "";

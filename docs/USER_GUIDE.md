@@ -1,6 +1,6 @@
-# sshtui – User Guide
+# shh – User Guide
 
-sshtui is a keyboard-driven terminal UI for your SSH servers. You keep your
+shh is a keyboard-driven terminal UI for your SSH servers. You keep your
 servers in one YAML file, browse and sort them in a table, and press **Enter**
 to connect. When tmux is installed, every connection runs in its own tmux
 session. If you leave the app or close the terminal, the connection keeps
@@ -31,26 +31,26 @@ are POSIX-only. Use WSL instead.
 ### 2.1 Run from source (simplest)
 
 ```sh
-tar xzf ssh-tui-0.1.0.tar.gz        # or: git clone ssh-tui.bundle ssh-tui
-cd ssh-tui
+tar xzf shh-0.1.0.tar.gz        # or: git clone shh.bundle shh
+cd shh
 bun install
 bun run start                       # launches the UI
 ```
 
-### 2.2 Put `sshtui` on your PATH
+### 2.2 Put `shh` on your PATH
 
 Option A: link the source launcher. This needs Bun on the machine.
 
 ```sh
 bun link                 # inside the project folder
-sshtui                   # now works from anywhere
+shh                   # now works from anywhere
 ```
 
 Option B: build a standalone binary. Bun is not needed at runtime.
 
 ```sh
-bun run build            # → dist/sshtui (~120 MB, contains the Bun runtime)
-sudo install -m 755 dist/sshtui /usr/local/bin/sshtui     # or: cp dist/sshtui ~/.local/bin/
+bun run build            # → dist/shh (~120 MB, contains the Bun runtime)
+sudo install -m 755 dist/shh /usr/local/bin/shh     # or: cp dist/shh ~/.local/bin/
 ```
 
 Build the binary **on the machine type it will run on**. Each OS and CPU needs
@@ -58,7 +58,7 @@ its own build, because the binary embeds a native renderer library. On Alpine
 or other musl systems, use `bun run build:musl`.
 
 > macOS: a binary you **downloaded or copied** from elsewhere may be blocked by
-> Gatekeeper. Run `xattr -d com.apple.quarantine sshtui` once. A binary you built
+> Gatekeeper. Run `xattr -d com.apple.quarantine shh` once. A binary you built
 > yourself on the Mac is not affected.
 
 ---
@@ -66,26 +66,26 @@ or other musl systems, use `bun run build:musl`.
 ## 3. First start
 
 ```sh
-sshtui
+shh
 ```
 
-The first time, sshtui creates a starter config at
+The first time, shh creates a starter config at
 
-- `$XDG_CONFIG_HOME/sshtui/config.yaml`, which is normally
-  **`~/.config/sshtui/config.yaml`** (on macOS too).
+- `$XDG_CONFIG_HOME/shh/config.yaml`, which is normally
+  **`~/.config/shh/config.yaml`** (on macOS too).
 
 The starter config contains one `example` server. Edit it with **e** or delete
 it with **d**, then add your own servers with **a**. You can also open the
 YAML file in your editor and press **r** in the app to reload it.
 
-To print the config path in use: `sshtui --config-path`.
+To print the config path in use: `shh --config-path`.
 
 ---
 
 ## 4. The screen
 
 ```
-╭ sshtui · 4 servers · 1 live session · tmux ────────────────────────────────────────╮
+╭ shh · 4 servers · 1 live session · tmux ───────────────────────────────────────────╮
 │    Name ▲     Host                 IPv4          User    Key       Conn  Description │
 │ ▸ ● bastion   bastion.example.com                ops     jump_ed   40    Jump host   │
 │     db-01                          10.0.0.5      pg      pg_key     3    Postgres    │
@@ -172,36 +172,36 @@ The **launch mode** setting decides what Enter does. Change it in Settings
 | `launch` | What happens | Resumable? |
 |---|---|---|
 | `auto` *(default)* | `tmux` if tmux is installed, otherwise `inline` | Only with tmux |
-| `tmux` | Always tmux. If tmux is missing, sshtui falls back to `inline` and shows a warning. | Yes |
+| `tmux` | Always tmux. If tmux is missing, shh falls back to `inline` and shows a warning. | Yes |
 | `inline` | ssh runs in the same terminal. The UI comes back when ssh exits. | No |
 | `terminal` | Opens a **new terminal window** for the session (tmux-backed if tmux is installed) | Yes, with tmux |
 
 ### 6.1 tmux mode, started outside tmux (the usual case)
 
-1. **Enter**: sshtui creates a detached tmux session named
+1. **Enter**: shh creates a detached tmux session named
    `<prefix><server>` (default `ssh-web-01`). ssh runs inside it, and your
    terminal attaches to it.
-2. To get back to sshtui **without disconnecting**, detach with the tmux
+2. To get back to shh **without disconnecting**, detach with the tmux
    prefix, then `d` (default **`Ctrl+b d`**). The table returns, and the server
    shows **●**.
 3. **Enter** on that server again **re-attaches** to the same session. Nothing
    was lost, and the connection counter is **not** increased.
 4. Type `exit` (or log out) in the remote shell. The ssh session ends, the tmux
-   session closes, and you are back in sshtui.
+   session closes, and you are back in shh.
 
-The session also survives if you quit sshtui or close the terminal window. The
-next time you open sshtui, the ● is still there and Enter resumes it.
+The session also survives if you quit shh or close the terminal window. The
+next time you open shh, the ● is still there and Enter resumes it.
 
 ### 6.2 tmux mode, started inside tmux
 
-If sshtui itself runs inside tmux, it does not nest tmux. It **switches your
-tmux client** to the server's session, and sshtui keeps running in its own
+If shh itself runs inside tmux, it does not nest tmux. It **switches your
+tmux client** to the server's session, and shh keeps running in its own
 session. To come back, use `Ctrl+b (` / `Ctrl+b )` (previous / next session),
 `Ctrl+b L` (last session), or `Ctrl+b s` (session picker).
 
 ### 6.3 terminal mode
 
-Each connection opens in a new terminal window. sshtui picks the terminal
+Each connection opens in a new terminal window. shh picks the terminal
 program in this order:
 
 1. `defaults.terminal_command` (Settings → *Terminal cmd*), a template in
@@ -214,7 +214,7 @@ program in this order:
      terminal that accepts a command on its command line (e.g. `alacritty -e {cmd}`).
 2. `$TERMINAL`, used as `$TERMINAL -e {cmd}`.
 3. **macOS**: Terminal.app (through AppleScript). The first time, macOS asks
-   you to allow sshtui or your terminal to control Terminal.app. Allow it.
+   you to allow shh or your terminal to control Terminal.app. Allow it.
 4. **Linux**: the first of x-terminal-emulator, gnome-terminal, konsole,
    alacritty, kitty, wezterm, foot, xfce4-terminal or xterm found on PATH.
 
@@ -228,10 +228,10 @@ With `hold_on_error: true` (the default), a failed connection, for example
 "connection refused" or a wrong key, keeps the tmux window open and shows:
 
 ```
-[sshtui] ssh exited with status 255. Press Enter to close.
+[shh] ssh exited with status 255. Press Enter to close.
 ```
 
-so you can read the error. In inline mode the status appears in sshtui's
+so you can read the error. In inline mode the status appears in shh's
 status line.
 
 ### 6.5 What the connection counter counts
@@ -245,7 +245,7 @@ values are written to the YAML file right away.
 Each server can have a `hostname`, an `ipv4`, or both. Enter uses
 `defaults.connect_via` (default `hostname`). A server-level `connect_via`
 overrides it. **I** always uses the IPv4 address for that one connection. If
-the preferred address is empty, sshtui uses the other one.
+the preferred address is empty, shh uses the other one.
 
 ---
 
@@ -253,9 +253,9 @@ the preferred address is empty, sshtui uses the other one.
 
 Location, in order of precedence:
 
-1. `sshtui --config /path/to/file.yaml`
-2. `$SSHTUI_CONFIG`
-3. `$XDG_CONFIG_HOME/sshtui/config.yaml` (default `~/.config/sshtui/config.yaml`)
+1. `shh --config /path/to/file.yaml`
+2. `$SHH_CONFIG`
+3. `$XDG_CONFIG_HOME/shh/config.yaml` (default `~/.config/shh/config.yaml`)
 
 Changes you make in the app are written back **without removing your comments**
 or changing the key order. Writes are atomic, and the file is created with
@@ -292,8 +292,8 @@ servers:
     description: Production web
     tags: [prod, web]               # searchable with /
     connect_via: ipv4               # optional per-server override
-    connections: 12                 # maintained by sshtui
-    last_connected: 2026-11-10T14:03:00.000Z   # maintained by sshtui
+    connections: 12                 # maintained by shh
+    last_connected: 2026-11-10T14:03:00.000Z   # maintained by shh
 ```
 
 ### 7.2 Protocols and logins
@@ -314,7 +314,7 @@ greyed out with a ✗, and the hint line says why.
 **Stored passwords are not encrypted.** With USERPASS you can leave the password
 empty (you are asked when connecting) or store it. A stored password is written
 to the config file as `password_b64`, base64-encoded. Base64 only hides it from a
-casual glance: anyone who can read the file can decode it. sshtui asks for
+casual glance: anyone who can read the file can decode it. shh asks for
 confirmation every time a new or changed password would be stored. In that dialog,
 `y` stores it, `w` saves the server without it, and `Esc` goes back to the form.
 
@@ -322,7 +322,7 @@ How a stored password reaches the client (it is never put on a command line, so
 it does not show up in `ps`):
 
 - ssh: through an `SSH_ASKPASS` helper. The password is staged in a `0600` file
-  in a private runtime directory (`$XDG_RUNTIME_DIR/sshtui`), read into the
+  in a private runtime directory (`$XDG_RUNTIME_DIR/shh`), read into the
   session's environment and deleted before ssh starts. Prompts that are not
   password prompts, such as host key confirmation, are still asked in the terminal.
   Needs OpenSSH 8.4 or newer.
@@ -330,12 +330,12 @@ it does not show up in `ps`):
   hands the session to you.
 - rdp: all arguments, including the password, are piped to
   `xfreerdp3 /args-from:stdin`. Without a stored password, xfreerdp3 runs in the
-  app's terminal so it can ask for the password, and sshtui waits until the RDP
+  app's terminal so it can ask for the password, and shh waits until the RDP
   window closes.
 
-### 7.3 What sshtui does with your keys
+### 7.3 What shh does with your keys
 
-Nothing beyond storing the path. sshtui **never opens, reads or copies**
+Nothing beyond storing the path. shh **never opens, reads or copies**
 private key files. It saves the *path* in the YAML file and passes it to
 `ssh -i <path>`. A leading `~` is expanded to your home directory. Leave the key
 empty to let ssh use its normal mechanisms: `ssh-agent`, `~/.ssh/config`
@@ -343,11 +343,11 @@ empty to let ssh use its normal mechanisms: `ssh-agent`, `~/.ssh/config`
 
 ### 7.4 Working with `~/.ssh/config`
 
-sshtui calls the system `ssh`, so everything in `~/.ssh/config` still applies:
+shh calls the system `ssh`, so everything in `~/.ssh/config` still applies:
 `ProxyJump`, `IdentityFile`, `User`, `Port`, `ControlMaster` and so on.
 
 - You can use a `Host` alias from `~/.ssh/config` as the `hostname`.
-- sshtui only passes `-p` when you set a port explicitly, so `Port` lines in
+- shh only passes `-p` when you set a port explicitly, so `Port` lines in
   `~/.ssh/config` keep working.
 - Options set on the command line (`-i`, `-p`, `user@`) **override**
   `~/.ssh/config`. Leave those fields empty if you want the ssh config to decide.
@@ -389,17 +389,17 @@ them by hand.
 ## 9. Command-line use
 
 ```sh
-sshtui                         # the UI
-sshtui --list                  # print the server table (● = live session) and exit
-sshtui --connect web-01        # connect/resume without the UI (counts like Enter)
-sshtui --connect web-01 --ipv4 # same, via the IPv4 address
-sshtui --config ~/work.yaml    # use another config file
-sshtui --config-path           # print which config file is used
-sshtui --help | --version
+shh                         # the UI
+shh --list                  # print the server table (● = live session) and exit
+shh --connect web-01        # connect/resume without the UI (counts like Enter)
+shh --connect web-01 --ipv4 # same, via the IPv4 address
+shh --config ~/work.yaml    # use another config file
+shh --config-path           # print which config file is used
+shh --help | --version
 ```
 
 To keep separate server lists, for example work and personal, use separate
-files: `alias work-ssh='sshtui --config ~/.config/sshtui/work.yaml'`.
+files: `alias work-ssh='shh --config ~/.config/shh/work.yaml'`.
 
 ---
 
@@ -407,7 +407,7 @@ files: `alias work-ssh='sshtui --config ~/.config/sshtui/work.yaml'`.
 
 | Symptom | Fix |
 |---|---|
-| Title says `inline (no persistence)` | tmux was not found. Install it, then restart sshtui. |
+| Title says `inline (no persistence)` | tmux was not found. Install it, then restart shh. |
 | Status: *"tmux session … ended before it could be attached"* | ssh exited immediately. Turn on *Hold on error* to see why, or test with `ssh -v <target>` in a shell. |
 | Enter opens a session but you can't get back | Detach with `Ctrl+b d` (or your own tmux prefix + `d`). |
 | ● is missing for a session you know exists | Press `r`. Also check that the session name matches `<prefix><name>` (`tmux ls`). Characters other than `A-Z a-z 0-9 _ -` in the name become `_`. |

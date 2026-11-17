@@ -99,14 +99,14 @@ describe("paths", () => {
 
   test("resolves config path with precedence explicit > env > XDG", () => {
     expect(resolveConfigPath("/tmp/x.yaml", {})).toBe("/tmp/x.yaml");
-    expect(resolveConfigPath(undefined, { SSHTUI_CONFIG: "/tmp/env.yaml" })).toBe("/tmp/env.yaml");
-    expect(resolveConfigPath(undefined, { XDG_CONFIG_HOME: "/xdg" })).toBe("/xdg/sshtui/config.yaml");
+    expect(resolveConfigPath(undefined, { SHH_CONFIG: "/tmp/env.yaml" })).toBe("/tmp/env.yaml");
+    expect(resolveConfigPath(undefined, { XDG_CONFIG_HOME: "/xdg" })).toBe("/xdg/shh/config.yaml");
   });
 });
 
 describe("ConfigStore", () => {
   function tempStore(): ConfigStore {
-    const dir = mkdtempSync(join(tmpdir(), "sshtui-test-"));
+    const dir = mkdtempSync(join(tmpdir(), "shh-test-"));
     return new ConfigStore(join(dir, "nested", "config.yaml"));
   }
 
@@ -132,7 +132,7 @@ describe("ConfigStore", () => {
     store.save(config);
 
     const text = readFileSync(store.path, "utf8");
-    expect(text).toContain("# sshtui configuration"); // top comment preserved
+    expect(text).toContain("# shh configuration"); // top comment preserved
     expect(text).toContain("# Login user for servers that do not set one"); // nested comment preserved
     const parsed = parse(text);
     expect(parsed.defaults.user).toBe("ops");

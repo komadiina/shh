@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-export const APP_DIR_NAME = "sshtui";
+export const APP_DIR_NAME = "shh";
 export const CONFIG_FILE_NAME = "config.yaml";
-export const CONFIG_ENV_VAR = "SSHTUI_CONFIG";
+export const CONFIG_ENV_VAR = "SHH_CONFIG";
 
 /** Expand a leading `~` or `~/` to the user's home directory. */
 export function expandHome(path: string, home: string = homedir()): string {
@@ -28,8 +28,8 @@ export function configDir(env: NodeJS.ProcessEnv = process.env): string {
 /**
  * Where the config lives, in order of precedence:
  *   1. an explicit path (`--config`)
- *   2. `$SSHTUI_CONFIG`
- *   3. `$XDG_CONFIG_HOME/sshtui/config.yaml` (default `~/.config/sshtui/config.yaml`)
+ *   2. `$SHH_CONFIG`
+ *   3. `$XDG_CONFIG_HOME/shh/config.yaml` (default `~/.config/shh/config.yaml`)
  */
 export function resolveConfigPath(explicit?: string, env: NodeJS.ProcessEnv = process.env): string {
   const candidate = explicit?.trim() || env[CONFIG_ENV_VAR]?.trim();

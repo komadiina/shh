@@ -143,15 +143,15 @@ export class Launcher {
     if (!hold) return run;
     return (
       `${run}; ec=$?; if [ "$ec" -ne 0 ]; then ` +
-      `printf '\\n[sshtui] ${command.protocol} exited with status %s. Press Enter to close.\\n' "$ec"; read -r _; fi; exit "$ec"`
+      `printf '\\n[shh] ${command.protocol} exited with status %s. Press Enter to close.\\n' "$ec"; read -r _; fi; exit "$ec"`
     );
   }
 
-  /** Read the staged password into $SSHTUI_SECRET and delete the file before the client starts. */
+  /** Read the staged password into $SHH_SECRET and delete the file before the client starts. */
   private secretPrelude(command: SessionCommand): string {
     if (command.secret === undefined) return "";
     const file = shellQuote(this.secrets.stage(command.secret));
-    let prelude = `SSHTUI_SECRET=$(cat ${file}); rm -f ${file}; export SSHTUI_SECRET; `;
+    let prelude = `SHH_SECRET=$(cat ${file}); rm -f ${file}; export SHH_SECRET; `;
     if (command.secretVia === "askpass") {
       prelude += `SSH_ASKPASS=${shellQuote(this.secrets.helper("askpass"))} SSH_ASKPASS_REQUIRE=force; export SSH_ASKPASS SSH_ASKPASS_REQUIRE; `;
     }

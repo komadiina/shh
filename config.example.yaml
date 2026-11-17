@@ -1,4 +1,4 @@
-# sshtui example configuration – copy to ~/.config/sshtui/config.yaml
+# shh example configuration – copy to ~/.config/shh/config.yaml
 version: 1
 
 defaults:

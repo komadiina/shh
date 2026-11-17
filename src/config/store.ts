@@ -11,7 +11,7 @@ import { Document, YAMLMap, YAMLSeq, isMap, isSeq, parseDocument } from "yaml";
 import { ConfigError, normalizeConfig } from "./schema.ts";
 import { defaultDefaults, type Config, type Defaults, type ServerEntry } from "./types.ts";
 
-export const INITIAL_CONFIG_TEMPLATE = `# sshtui configuration
+export const INITIAL_CONFIG_TEMPLATE = `# shh configuration
 # Docs: see docs/USER_GUIDE.md in the project. Edit freely; comments are preserved.
 version: 1
 

@@ -12,14 +12,14 @@ export interface CliOptions {
   version: boolean;
 }
 
-export const USAGE = `sshtui – a terminal UI for your SSH servers
+export const USAGE = `shh – a terminal UI for your SSH servers
 
 Usage:
-  sshtui [options]
+  shh [options]
 
 Options:
-  -c, --config <path>     Use this config file (default: $SSHTUI_CONFIG or
-                          $XDG_CONFIG_HOME/sshtui/config.yaml)
+  -c, --config <path>     Use this config file (default: $SHH_CONFIG or
+                          $XDG_CONFIG_HOME/shh/config.yaml)
   -l, --list              Print the servers as a table and exit
   -C, --connect <name>    Connect to <name> without opening the UI
       --ipv4              With --connect: use the IPv4 address
