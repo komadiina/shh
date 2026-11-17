@@ -7,25 +7,25 @@ i couldnt mind less :)*
 
 ___
 
-A keyboard-driven terminal UI for your SSH servers, built with
-[OpenTUI](https://opentui.com) and Bun.
+a little keyboard-driven terminal ui for your ssh servers. built with
+[opentui](https://opentui.com) and bun; nothing fancy, it just gets you where you're going.
 
-- **One YAML file** for all servers: name, hostname, IPv4, user, key *path*,
-  port, description, tags, and a connection counter.
-- **Sortable table**: digits `1`–`9` sort by column (press again to reverse),
-  `/` filters live, and the hotkeys are always visible at the bottom.
-- **Resumable sessions**: with tmux, each server gets its own tmux session.
-  Detach, quit, or close the terminal, and Enter resumes it later. Live sessions
-  are marked ●. Without tmux, ssh runs inline.
-- **New-window mode**: open sessions in your terminal emulator instead
-  (tmux-backed when available).
-- **Settings pane** for defaults: user, key, port, launch mode, ssh options and more.
-- **Keys are never read**: only their paths are stored and passed to `ssh -i`.
-- Edits from the app **keep your YAML comments**.
+- **one yaml file** for everything: name, hostname, ipv4, user, key *path*,
+  port, description, tags and a connection counter.
+- **sortable table**: hit `1`–`9` to sort by a column (hit it again to flip it).
+  `/` filters as you type; the hotkeys hang out at the bottom so you never have to remember them.
+- **resumable sessions**: got tmux? cool, each server gets its own tmux session.
+  detach, quit, close the terminal, whatever; enter picks it right back up later.
+  live sessions get a little ●. no tmux? ssh just runs inline. no biggie.
+- **new-window mode**: pop sessions open in your terminal emulator instead
+  (still tmux-backed if it's around).
+- **settings pane** for your defaults: user, key, port, launch mode, ssh options and so on.
+- **your keys stay untouched**: shh only stores their paths and hands them to `ssh -i`.
+- edits from the app **keep your yaml comments** right where you left them.
 
 ![Main table](docs/screenshots/01-main-table.png)
 
-More: [filter & sort](docs/screenshots/02-sorted-filtered.png) ·
+more pics: [filter & sort](docs/screenshots/02-sorted-filtered.png) ·
 [edit form](docs/screenshots/03-edit-server.png) ·
 [validation](docs/screenshots/04-add-validation.png) ·
 [settings](docs/screenshots/05-settings.png) ·
@@ -33,7 +33,7 @@ More: [filter & sort](docs/screenshots/02-sorted-filtered.png) ·
 [kill session](docs/screenshots/07-kill-confirm.png) ·
 [narrow / inline](docs/screenshots/08-narrow-inline.png)
 
-## Quick start
+## quick start
 
 ```sh
 # needs Bun ≥ 1.3.14 (https://bun.sh) and ssh; tmux recommended
@@ -41,11 +41,11 @@ bun install
 bun run start            # first run creates ~/.config/shh/config.yaml
 ```
 
-Press `?` in the app for the keys. Full documentation:
-**[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**. Design decisions (why tmux and not
-lockfiles): [docs/DESIGN.md](docs/DESIGN.md).
+press `?` in the app if you forget a key. the full rundown lives in
+**[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**. curious why it's tmux and not
+lockfiles? that's in [docs/DESIGN.md](docs/DESIGN.md).
 
-## Install as a command
+## install as a command
 
 ```sh
 bun link                 # runs from source; needs Bun
@@ -53,7 +53,7 @@ bun link                 # runs from source; needs Bun
 bun run build && install -m 755 dist/shh ~/.local/bin/shh
 ```
 
-## Development
+## development
 
 ```sh
 bun run dev        # watch mode
@@ -62,6 +62,6 @@ bun run typecheck
 bun run check      # both
 ```
 
-See `config.example.yaml` for every config option.
+every config option is in `config.example.yaml` if you wanna poke around.
 
-License: MIT
+license: mit

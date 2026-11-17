@@ -1,34 +1,34 @@
-# shh – User Guide
+# shh – user guide
 
-shh is a keyboard-driven terminal UI for your SSH servers. You keep your
-servers in one YAML file, browse and sort them in a table, and press **Enter**
-to connect. When tmux is installed, every connection runs in its own tmux
-session. If you leave the app or close the terminal, the connection keeps
-running, and pressing Enter on that server again **resumes** it.
+shh is a keyboard-driven terminal ui for your ssh servers. you keep them all in
+one yaml file, browse and sort them in a table, and hit **enter** to connect.
+easy. if tmux is installed, every connection gets its own tmux session. leave
+the app or close the terminal and the connection keeps humming along; hit enter
+on that server again and you **pick up right where you left off**.
 
 ---
 
-## 1. Requirements
+## 1. what you need
 
-| What | Needed? | Notes |
+| what | needed? | notes |
 |---|---|---|
-| **Bun ≥ 1.3.14** | Yes, to run from source | `curl -fsSL https://bun.sh/install \| bash`, or `brew install oven-sh/bun/bun`. Not needed if you use a compiled binary. |
-| **OpenSSH client** (`ssh`) | Yes | Already installed on macOS and almost every Linux distribution. |
-| **tmux** | Recommended | Gives you resumable sessions. `brew install tmux` / `sudo apt install tmux` / `sudo dnf install tmux`. Byobu users already have it, because byobu runs on tmux. |
-| A terminal emulator | Only for `launch: terminal` | Auto-detected (see §6.3). |
-| **telnet** | Only for telnet servers | The TELNET option in the form is greyed out when it is missing. |
-| **expect** | Only for telnet with a stored password | Without it telnet works, but you type the login yourself. |
-| **xfreerdp3** (FreeRDP 3) | Only for RDP servers | The RDP option in the form is greyed out when it is missing. |
+| **bun ≥ 1.3.14** | yep, to run from source | `curl -fsSL https://bun.sh/install \| bash`, or `brew install oven-sh/bun/bun`. skip it if you're using a compiled binary. |
+| **openssh client** (`ssh`) | yep | you almost certainly have it already; macos and pretty much every linux distro ship it. |
+| **tmux** | recommended | gets you resumable sessions. `brew install tmux` / `sudo apt install tmux` / `sudo dnf install tmux`. byobu folks already have it, since byobu runs on tmux. |
+| a terminal emulator | only for `launch: terminal` | auto-detected (see §6.3). |
+| **telnet** | only for telnet servers | the TELNET option in the form is greyed out if it's missing. |
+| **expect** | only for telnet with a stored password | telnet works fine without it; you just type the login yourself. |
+| **xfreerdp3** (freerdp 3) | only for rdp servers | the RDP option in the form is greyed out if it's missing. |
 
-Supported platforms: macOS (Intel and Apple Silicon) and Linux (x64 and arm64,
-glibc or musl). Windows is not supported, because tmux and the session model
-are POSIX-only. Use WSL instead.
+runs on macos (intel and apple silicon) and linux (x64 and arm64, glibc or
+musl). windows isn't supported since tmux and the session model are posix-only;
+wsl works great though.
 
 ---
 
-## 2. Installation
+## 2. installing
 
-### 2.1 Run from source (simplest)
+### 2.1 run from source (easiest)
 
 ```sh
 tar xzf shh-0.1.0.tar.gz        # or: git clone shh.bundle shh
@@ -37,52 +37,52 @@ bun install
 bun run start                       # launches the UI
 ```
 
-### 2.2 Put `shh` on your PATH
+### 2.2 put `shh` on your PATH
 
-Option A: link the source launcher. This needs Bun on the machine.
+option a: link the source launcher. needs bun on the machine.
 
 ```sh
 bun link                 # inside the project folder
 shh                   # now works from anywhere
 ```
 
-Option B: build a standalone binary. Bun is not needed at runtime.
+option b: build a standalone binary. no bun needed at runtime.
 
 ```sh
 bun run build            # → dist/shh (~120 MB, contains the Bun runtime)
 sudo install -m 755 dist/shh /usr/local/bin/shh     # or: cp dist/shh ~/.local/bin/
 ```
 
-Build the binary **on the machine type it will run on**. Each OS and CPU needs
-its own build, because the binary embeds a native renderer library. On Alpine
-or other musl systems, use `bun run build:musl`.
+build the binary **on the same kind of machine it'll run on**. each os and cpu
+needs its own build since the binary bundles a native renderer library. on
+alpine or other musl systems, use `bun run build:musl`.
 
-> macOS: a binary you **downloaded or copied** from elsewhere may be blocked by
-> Gatekeeper. Run `xattr -d com.apple.quarantine shh` once. A binary you built
-> yourself on the Mac is not affected.
+> macos heads-up: a binary you **downloaded or copied** from somewhere else might
+> get blocked by gatekeeper. run `xattr -d com.apple.quarantine shh` once and
+> you're good. binaries you built yourself on the mac are fine.
 
 ---
 
-## 3. First start
+## 3. first start
 
 ```sh
 shh
 ```
 
-The first time, shh creates a starter config at
+the first time around, shh drops a starter config at
 
-- `$XDG_CONFIG_HOME/shh/config.yaml`, which is normally
-  **`~/.config/shh/config.yaml`** (on macOS too).
+- `$XDG_CONFIG_HOME/shh/config.yaml`, which is usually
+  **`~/.config/shh/config.yaml`** (on macos too).
 
-The starter config contains one `example` server. Edit it with **e** or delete
-it with **d**, then add your own servers with **a**. You can also open the
-YAML file in your editor and press **r** in the app to reload it.
+it comes with one `example` server. edit it with **e** or toss it with **d**,
+then add your own with **a**. you can also just open the yaml in your editor
+and hit **r** in the app to reload.
 
-To print the config path in use: `shh --config-path`.
+wanna know which config file it's using? `shh --config-path`.
 
 ---
 
-## 4. The screen
+## 4. the screen
 
 ```
 ╭ shh · 4 servers · 1 live session · tmux ───────────────────────────────────────────╮
@@ -95,174 +95,173 @@ To print the config path in use: `shh --config-path`.
  sort 1 Name▲  2 Host  3 IPv4  4 User  5 Key  6 Port  7 Conn  8 Description  9 Last  S reverse
 ```
 
-- **Title bar**: number of servers, the active filter, the number of live
-  sessions, and the launch mode in effect (`tmux`, `tmux (inside)`,
+- **title bar**: how many servers you've got, the active filter, how many live
+  sessions there are, and the launch mode in play (`tmux`, `tmux (inside)`,
   `inline (no persistence)` or `new terminal window`).
-- **▸** marks the selected row. **●** (green) means the server has a live tmux
-  session that you can resume.
-- **Columns**: Name, Host, IPv4, User, Key (the file name of the key path),
-  Port, Conn (how many sessions you have started), Description, Last (time since
-  the last new session). On narrow terminals the least important columns are
-  hidden first. Name is always shown.
-- **Bottom border**: status messages (✓ success, ! warning, ✗ error).
-- **Bottom two lines**: the hotkeys. The second line is the sort bar, and the
-  active sort column is highlighted with ▲ or ▼.
+- **▸** is the selected row. a green **●** means that server has a live tmux
+  session waiting for you.
+- **columns**: name, host, ipv4, user, key (just the file name of the key path),
+  port, conn (how many sessions you've started), description, last (time since
+  the last new session). on narrow terminals the less important columns hide
+  first; name always sticks around.
+- **bottom border**: status messages (✓ success, ! warning, ✗ error).
+- **bottom two lines**: the hotkeys. the second line is the sort bar; the
+  active sort column gets a ▲ or ▼.
 
 ---
 
-## 5. Keys
+## 5. keys
 
-### Navigation
-| Key | Action |
+### getting around
+| key | what it does |
 |---|---|
-| `↑` `↓` / `k` `j` | Move the selection |
-| `PgUp` `PgDn` | Move one page |
-| `g` / `Home`, `G` / `End` | First / last server |
-| `/` | Filter. Type to narrow the list live; **Enter** keeps the filter, **Esc** clears it. The filter matches name, host, IP, user, description and tags. All words must match. |
-| `Esc` (in the table) | Clear an active filter |
+| `↑` `↓` / `k` `j` | move the selection |
+| `PgUp` `PgDn` | jump a page |
+| `g` / `Home`, `G` / `End` | first / last server |
+| `/` | filter. type to narrow things down live; **enter** keeps the filter, **esc** clears it. it matches name, host, ip, user, description and tags. every word has to match. |
+| `Esc` (in the table) | clear an active filter |
 
-### Sorting
-| Key | Action |
+### sorting
+| key | what it does |
 |---|---|
-| `1`–`9` | Sort by Name, Host, IPv4, User, Key, Port, Conn, Description, Last. Press the same digit again to reverse the order. |
-| `S` | Reverse the current sort |
+| `1`–`9` | sort by name, host, ipv4, user, key, port, conn, description, last. hit the same digit again to flip it. |
+| `S` | flip the current sort |
 
-Names sort naturally (`web-2` comes before `web-10`) and IPs sort octet by
-octet. Empty values always go to the bottom. To change the sort used at
-startup, go to Settings (`c`).
+names sort naturally (`web-2` comes before `web-10`) and ips sort octet by
+octet. empty values always sink to the bottom. if you want a different sort on
+startup, head to settings (`c`).
 
-### Sessions
-| Key | Action |
+### sessions
+| key | what it does |
 |---|---|
-| `Enter` | **Connect, or resume** the server's session |
-| `I` | Connect using the server's **IPv4** address instead of its hostname |
-| `K` | **Kill** the server's tmux session (asks for confirmation) |
-| `r` | Reload the config file from disk and refresh the session status |
+| `Enter` | **connect, or resume** the server's session |
+| `I` | connect using the server's **ipv4** instead of its hostname |
+| `K` | **kill** the server's tmux session (asks first) |
+| `r` | reload the config from disk and refresh session status |
 
-### Editing
-| Key | Action |
+### editing
+| key | what it does |
 |---|---|
-| `a` | Add a server |
-| `e` | Edit the selected server |
-| `d` | Delete the selected server (asks for confirmation) |
-| `c` | Settings pane (defaults) |
-| `?` | Help |
-| `q` / `Ctrl+C` | Quit. Live tmux sessions keep running. |
+| `a` | add a server |
+| `e` | edit the selected server |
+| `d` | delete the selected server (asks first) |
+| `c` | settings pane (defaults) |
+| `?` | help |
+| `q` / `Ctrl+C` | quit. live tmux sessions keep running, don't worry. |
 
-### Inside forms (add / edit / settings)
-| Key | Action |
+### inside forms (add / edit / settings)
+| key | what it does |
 |---|---|
-| `Tab` / `↓`, `Shift+Tab` / `↑` | Next / previous field |
-| `Enter` | Next field. On the last field, it saves. |
-| `Space` / `←` `→` | Change a choice field (◂ value ▸), a toggle ([x]) or a box selector (`[SSH]  TELNET  RDP`) |
-| `Ctrl+U` | Clear the password field |
-| `Ctrl+S` | Save |
-| `Esc` | Cancel without saving |
+| `Tab` / `↓`, `Shift+Tab` / `↑` | next / previous field |
+| `Enter` | next field; on the last one, it saves |
+| `Space` / `←` `→` | change a choice field (◂ value ▸), a toggle ([x]) or a box selector (`[SSH]  TELNET  RDP`) |
+| `Ctrl+U` | clear the password field |
+| `Ctrl+S` | save |
+| `Esc` | bail out without saving |
 
-Invalid input, such as a duplicate name, a bad IPv4 address or a port outside
-1–65535, is shown in red and the form is not saved.
+bad input, like a duplicate name, a wonky ipv4 or a port outside 1–65535,
+shows up in red and the form won't save until it's sorted.
 
 ---
 
-## 6. Sessions: how connecting works
+## 6. sessions: how connecting works
 
-The **launch mode** setting decides what Enter does. Change it in Settings
+the **launch mode** setting decides what enter does. change it in settings
 (`c`) or set `defaults.launch` in the config file.
 
-| `launch` | What happens | Resumable? |
+| `launch` | what happens | resumable? |
 |---|---|---|
-| `auto` *(default)* | `tmux` if tmux is installed, otherwise `inline` | Only with tmux |
-| `tmux` | Always tmux. If tmux is missing, shh falls back to `inline` and shows a warning. | Yes |
-| `inline` | ssh runs in the same terminal. The UI comes back when ssh exits. | No |
-| `terminal` | Opens a **new terminal window** for the session (tmux-backed if tmux is installed) | Yes, with tmux |
+| `auto` *(default)* | `tmux` if tmux is installed, otherwise `inline` | only with tmux |
+| `tmux` | always tmux. if tmux is missing, shh falls back to `inline` and gives you a heads-up. | yep |
+| `inline` | ssh runs in the same terminal; the ui comes back when ssh exits. | nope |
+| `terminal` | opens a **new terminal window** for the session (tmux-backed if tmux is around) | yep, with tmux |
 
 ### 6.1 tmux mode, started outside tmux (the usual case)
 
-1. **Enter**: shh creates a detached tmux session named
-   `<prefix><server>` (default `ssh-web-01`). ssh runs inside it, and your
-   terminal attaches to it.
-2. To get back to shh **without disconnecting**, detach with the tmux
-   prefix, then `d` (default **`Ctrl+b d`**). The table returns, and the server
-   shows **●**.
-3. **Enter** on that server again **re-attaches** to the same session. Nothing
-   was lost, and the connection counter is **not** increased.
-4. Type `exit` (or log out) in the remote shell. The ssh session ends, the tmux
-   session closes, and you are back in shh.
+1. **enter**: shh spins up a detached tmux session called
+   `<prefix><server>` (default `ssh-web-01`). ssh runs inside it and your
+   terminal attaches.
+2. to hop back to shh **without disconnecting**, detach with the tmux prefix
+   then `d` (default **`Ctrl+b d`**). the table comes back and the server
+   shows a **●**.
+3. **enter** on that server again **re-attaches** to the same session. nothing
+   lost; the connection counter **doesn't** go up either.
+4. type `exit` (or log out) in the remote shell. ssh ends, the tmux session
+   closes, and you land back in shh.
 
-The session also survives if you quit shh or close the terminal window. The
-next time you open shh, the ● is still there and Enter resumes it.
+the session even survives quitting shh or closing the terminal window. next
+time you open shh the ● is still there and enter resumes it.
 
 ### 6.2 tmux mode, started inside tmux
 
-If shh itself runs inside tmux, it does not nest tmux. It **switches your
-tmux client** to the server's session, and shh keeps running in its own
-session. To come back, use `Ctrl+b (` / `Ctrl+b )` (previous / next session),
-`Ctrl+b L` (last session), or `Ctrl+b s` (session picker).
+if shh itself is running inside tmux, it won't nest tmux. it just **switches
+your tmux client** over to the server's session; shh keeps running in its own.
+to get back, use `Ctrl+b (` / `Ctrl+b )` (previous / next session),
+`Ctrl+b L` (last session) or `Ctrl+b s` (session picker).
 
 ### 6.3 terminal mode
 
-Each connection opens in a new terminal window. shh picks the terminal
+each connection opens in a fresh terminal window. shh picks the terminal
 program in this order:
 
-1. `defaults.terminal_command` (Settings → *Terminal cmd*), a template in
-   which `{cmd}` is replaced by the command to run:
+1. `defaults.terminal_command` (settings → *terminal cmd*), a template where
+   `{cmd}` gets swapped for the command to run:
    - `alacritty -e {cmd}`
    - `kitty {cmd}`
    - `wezterm start -- {cmd}`
    - `gnome-terminal -- {cmd}`
-   - On macOS, leave it empty to use Terminal.app, or point it at any
-     terminal that accepts a command on its command line (e.g. `alacritty -e {cmd}`).
+   - on macos, leave it empty to use terminal.app, or point it at any terminal
+     that takes a command on its command line (e.g. `alacritty -e {cmd}`).
 2. `$TERMINAL`, used as `$TERMINAL -e {cmd}`.
-3. **macOS**: Terminal.app (through AppleScript). The first time, macOS asks
-   you to allow shh or your terminal to control Terminal.app. Allow it.
-4. **Linux**: the first of x-terminal-emulator, gnome-terminal, konsole,
+3. **macos**: terminal.app (via applescript). the first time, macos asks if
+   shh or your terminal can control terminal.app; just allow it.
+4. **linux**: the first of x-terminal-emulator, gnome-terminal, konsole,
    alacritty, kitty, wezterm, foot, xfce4-terminal or xterm found on PATH.
 
-With tmux installed, the window runs `tmux new-session -A -s ssh-<name>`. That
-command attaches to the session if it already exists, or creates it if not, so
-closing the window does not drop the connection.
+with tmux installed, the window runs `tmux new-session -A -s ssh-<name>`. that
+attaches to the session if it already exists or creates it if not; closing the
+window won't drop the connection.
 
-### 6.4 When ssh fails
+### 6.4 when ssh fails
 
-With `hold_on_error: true` (the default), a failed connection, for example
+with `hold_on_error: true` (the default), a failed connection, say
 "connection refused" or a wrong key, keeps the tmux window open and shows:
 
 ```
 [shh] ssh exited with status 255. Press Enter to close.
 ```
 
-so you can read the error. In inline mode the status appears in shh's
-status line.
+so you actually get to read the error. in inline mode the status lands in shh's
+status line instead.
 
-### 6.5 What the connection counter counts
+### 6.5 what the connection counter counts
 
-`connections` goes up by one, and `last_connected` is set, every time a **new**
-ssh session is started. Resuming an existing tmux session does not count. Both
-values are written to the YAML file right away.
+`connections` goes up by one and `last_connected` gets set every time a **new**
+ssh session starts. resuming an existing tmux session doesn't count. both get
+written to the yaml right away.
 
-### 6.6 What "IPv4 vs hostname" means
+### 6.6 ipv4 vs hostname
 
-Each server can have a `hostname`, an `ipv4`, or both. Enter uses
-`defaults.connect_via` (default `hostname`). A server-level `connect_via`
-overrides it. **I** always uses the IPv4 address for that one connection. If
-the preferred address is empty, shh uses the other one.
+each server can have a `hostname`, an `ipv4`, or both. enter uses
+`defaults.connect_via` (default `hostname`); a server-level `connect_via`
+overrides that. **I** always uses the ipv4 for that one connection. if the
+preferred address is empty, shh just uses the other one.
 
 ---
 
-## 7. The config file
+## 7. the config file
 
-Location, in order of precedence:
+where it lives, in order of precedence:
 
 1. `shh --config /path/to/file.yaml`
 2. `$SHH_CONFIG`
 3. `$XDG_CONFIG_HOME/shh/config.yaml` (default `~/.config/shh/config.yaml`)
 
-Changes you make in the app are written back **without removing your comments**
-or changing the key order. Writes are atomic, and the file is created with
-mode `0600`. You can edit the file by hand at any time and press **r** in the
-app to reload it.
+changes made in the app get written back **without nuking your comments** or
+shuffling the key order. writes are atomic and the file is created with mode
+`0600`. feel free to edit it by hand whenever; hit **r** in the app to reload.
 
-### 7.1 Full example
+### 7.1 full example
 
 ```yaml
 version: 1
@@ -296,97 +295,98 @@ servers:
     last_connected: 2026-11-10T14:03:00.000Z   # maintained by shh
 ```
 
-### 7.2 Protocols and logins
+### 7.2 protocols and logins
 
-Each server has a **protocol** (`[SSH]` / `[TELNET]` / `[RDP]` at the top of the
+each server has a **protocol** (`[SSH]` / `[TELNET]` / `[RDP]` at the top of the
 add/edit form) and an **auth** method (`[PUBKEY]` / `[USERPASS]`, or `[NONE]` for
-telnet). The form only shows the fields that apply: the key path for ssh +
-PUBKEY, the password for USERPASS, and domain / resolution / certificate /
-clipboard / shared directory for RDP. Options whose client is not installed are
-greyed out with a ✗, and the hint line says why.
+telnet). the form only shows what's relevant: the key path for ssh + pubkey,
+the password for userpass, and domain / resolution / certificate / clipboard /
+shared directory for rdp. options whose client isn't installed get greyed out
+with a ✗, and the hint line tells you why.
 
-| Protocol | Runs | Default port | Notes |
+| protocol | runs | default port | notes |
 |---|---|---|---|
-| ssh | `ssh` in tmux / inline / a new terminal | 22 (or `~/.ssh/config`) | PUBKEY or USERPASS |
-| telnet | `telnet [-l user] host [port]`, same session modes as ssh | 23 | USERPASS with a stored password needs `expect` |
-| rdp | `xfreerdp3` in its own window | 3389 | Always USERPASS; RDP windows are not tmux sessions, so `K` does not apply |
+| ssh | `ssh` in tmux / inline / a new terminal | 22 (or `~/.ssh/config`) | pubkey or userpass |
+| telnet | `telnet [-l user] host [port]`, same session modes as ssh | 23 | userpass with a stored password needs `expect` |
+| rdp | `xfreerdp3` in its own window | 3389 | always userpass; rdp windows aren't tmux sessions, so `K` doesn't apply |
 
-**Stored passwords are not encrypted.** With USERPASS you can leave the password
-empty (you are asked when connecting) or store it. A stored password is written
-to the config file as `password_b64`, base64-encoded. Base64 only hides it from a
-casual glance: anyone who can read the file can decode it. shh asks for
-confirmation every time a new or changed password would be stored. In that dialog,
-`y` stores it, `w` saves the server without it, and `Esc` goes back to the form.
+**stored passwords aren't encrypted.** just so you know. with userpass you can
+leave the password empty (you'll get asked when connecting) or store it. a
+stored password goes into the config as `password_b64`, base64-encoded. base64
+only hides it from a quick glance; anyone who can read the file can decode it.
+shh asks you every time a new or changed password would be stored. in that
+dialog, `y` stores it, `w` saves the server without it, and `Esc` takes you
+back to the form.
 
-How a stored password reaches the client (it is never put on a command line, so
-it does not show up in `ps`):
+how a stored password gets to the client (it never lands on a command line, so
+it won't show up in `ps`):
 
-- ssh: through an `SSH_ASKPASS` helper. The password is staged in a `0600` file
+- ssh: through an `SSH_ASKPASS` helper. the password is staged in a `0600` file
   in a private runtime directory (`$XDG_RUNTIME_DIR/shh`), read into the
-  session's environment and deleted before ssh starts. Prompts that are not
-  password prompts, such as host key confirmation, are still asked in the terminal.
-  Needs OpenSSH 8.4 or newer.
+  session's environment and deleted before ssh starts. prompts that aren't
+  password prompts, like host key confirmation, still get asked in the terminal.
+  needs openssh 8.4 or newer.
 - telnet: an `expect` script answers the first login and password prompts, then
-  hands the session to you.
-- rdp: all arguments, including the password, are piped to
-  `xfreerdp3 /args-from:stdin`. Without a stored password, xfreerdp3 runs in the
-  app's terminal so it can ask for the password, and shh waits until the RDP
-  window closes.
+  hands the session over to you.
+- rdp: all the arguments, password included, get piped to
+  `xfreerdp3 /args-from:stdin`. without a stored password, xfreerdp3 runs in the
+  app's terminal so it can ask you, and shh hangs tight until the rdp window
+  closes.
 
-### 7.3 What shh does with your keys
+### 7.3 what shh does with your keys
 
-Nothing beyond storing the path. shh **never opens, reads or copies**
-private key files. It saves the *path* in the YAML file and passes it to
-`ssh -i <path>`. A leading `~` is expanded to your home directory. Leave the key
-empty to let ssh use its normal mechanisms: `ssh-agent`, `~/.ssh/config`
+nothing besides storing the path, promise. shh **never opens, reads or copies**
+private key files. it saves the *path* in the yaml and passes it to
+`ssh -i <path>`. a leading `~` gets expanded to your home dir. leave the key
+empty and ssh does its usual thing: `ssh-agent`, `~/.ssh/config`
 `IdentityFile`, or the default keys.
 
-### 7.4 Working with `~/.ssh/config`
+### 7.4 playing nice with `~/.ssh/config`
 
-shh calls the system `ssh`, so everything in `~/.ssh/config` still applies:
-`ProxyJump`, `IdentityFile`, `User`, `Port`, `ControlMaster` and so on.
+shh calls the system `ssh`, so everything in `~/.ssh/config` still works:
+`ProxyJump`, `IdentityFile`, `User`, `Port`, `ControlMaster` and friends.
 
-- You can use a `Host` alias from `~/.ssh/config` as the `hostname`.
-- shh only passes `-p` when you set a port explicitly, so `Port` lines in
+- you can use a `Host` alias from `~/.ssh/config` as the `hostname`.
+- shh only passes `-p` when you set a port explicitly; `Port` lines in
   `~/.ssh/config` keep working.
-- Options set on the command line (`-i`, `-p`, `user@`) **override**
-  `~/.ssh/config`. Leave those fields empty if you want the ssh config to decide.
+- stuff set on the command line (`-i`, `-p`, `user@`) **wins over**
+  `~/.ssh/config`. leave those fields empty if you'd rather let the ssh config decide.
 
-### 7.5 Validation
+### 7.5 validation
 
-- **Errors** (the app refuses to start, with a message that names the field):
+- **errors** (the app won't start and tells you which field is off):
   a server without a name, duplicate names, `servers` not being a list, or
-  invalid YAML syntax.
-- **Warnings** (shown in a dialog at startup, then the app continues): an
-  unknown `launch` or `connect_via` value (the default is used), an invalid
-  port or IPv4 address, or a server with neither a hostname nor an IPv4 address.
+  broken yaml syntax.
+- **warnings** (shown in a dialog at startup, then the app carries on): an
+  unknown `launch` or `connect_via` value (falls back to the default), a bad
+  port or ipv4, or a server with neither a hostname nor an ipv4.
 
 ---
 
-## 8. Settings pane (`c`)
+## 8. settings pane (`c`)
 
-The pane shows where the config file lives, whether tmux was found (and
-whether you are inside it), and which terminal `launch: terminal` would use.
-It edits everything under `defaults:`:
+the pane shows where your config lives, whether tmux was found (and whether
+you're inside it), and which terminal `launch: terminal` would use. it edits
+everything under `defaults:`:
 
-| Field | Meaning |
+| field | what it means |
 |---|---|
-| Default user / Default key / Default port | Used for servers that leave these fields empty |
-| Connect via | `hostname` or `ipv4` |
-| Launch mode | `auto`, `tmux`, `inline`, `terminal` (see §6) |
-| Terminal cmd | Template for terminal mode, with `{cmd}` |
-| ssh options | Extra ssh arguments, shell-quoted, e.g. `-o ServerAliveInterval=30 -o ConnectTimeout=5` |
-| tmux prefix | Session name prefix. No `.`, `:` or spaces. |
-| Hold on error | Keep the window open after a failed ssh |
-| Sort column / dir | Startup sort |
+| default user / default key / default port | used for servers that leave these empty |
+| connect via | `hostname` or `ipv4` |
+| launch mode | `auto`, `tmux`, `inline`, `terminal` (see §6) |
+| terminal cmd | template for terminal mode, with `{cmd}` |
+| ssh options | extra ssh args, shell-quoted, e.g. `-o ServerAliveInterval=30 -o ConnectTimeout=5` |
+| tmux prefix | session name prefix. no `.`, `:` or spaces. |
+| hold on error | keep the window open after a failed ssh |
+| sort column / dir | startup sort |
 
-If you change the tmux prefix, live sessions created under the old prefix are
-no longer recognised. Kill them first, or detach and use `tmux ls` to manage
-them by hand.
+if you change the tmux prefix, live sessions made under the old prefix won't
+get recognised anymore. kill them first, or detach and sort them out by hand
+with `tmux ls`.
 
 ---
 
-## 9. Command-line use
+## 9. command-line use
 
 ```sh
 shh                         # the UI
@@ -398,22 +398,24 @@ shh --config-path           # print which config file is used
 shh --help | --version
 ```
 
-To keep separate server lists, for example work and personal, use separate
-files: `alias work-ssh='shh --config ~/.config/shh/work.yaml'`.
+want separate server lists, like work and personal? just use separate files:
+`alias work-ssh='shh --config ~/.config/shh/work.yaml'`.
 
 ---
 
-## 10. Troubleshooting
+## 10. troubleshooting
 
-| Symptom | Fix |
+nothing here's scary; most of it's a quick fix.
+
+| symptom | fix |
 |---|---|
-| Title says `inline (no persistence)` | tmux was not found. Install it, then restart shh. |
-| Status: *"tmux session … ended before it could be attached"* | ssh exited immediately. Turn on *Hold on error* to see why, or test with `ssh -v <target>` in a shell. |
-| Enter opens a session but you can't get back | Detach with `Ctrl+b d` (or your own tmux prefix + `d`). |
-| ● is missing for a session you know exists | Press `r`. Also check that the session name matches `<prefix><name>` (`tmux ls`). Characters other than `A-Z a-z 0-9 _ -` in the name become `_`. |
-| *"No terminal emulator found"* | Set *Terminal cmd* in Settings, e.g. `alacritty -e {cmd}`. |
-| Terminal mode does nothing on macOS | Allow automation in System Settings → Privacy & Security → Automation (your terminal → Terminal). |
-| `Could not load …: YAML syntax error` | Fix the file. The message gives the line. Your comments are not touched by the app. |
-| Ctrl+S does nothing in a form | Some terminal setups use Ctrl+S for flow control. Press Enter on the last field instead. |
-| Garbled screen after a crash | Run `reset` in the terminal. |
-| Colours look odd | Use a terminal with true-colour support and `TERM=xterm-256color` (or similar). |
+| title says `inline (no persistence)` | tmux wasn't found. install it and restart shh. |
+| status: *"tmux session … ended before it could be attached"* | ssh exited right away. turn on *hold on error* to see why, or try `ssh -v <target>` in a shell. |
+| enter opens a session but you can't get back | detach with `Ctrl+b d` (or your own tmux prefix + `d`). |
+| ● is missing for a session you know exists | hit `r`. also check the session name matches `<prefix><name>` (`tmux ls`); anything other than `A-Z a-z 0-9 _ -` in the name turns into `_`. |
+| *"No terminal emulator found"* | set *terminal cmd* in settings, e.g. `alacritty -e {cmd}`. |
+| terminal mode does nothing on macos | allow automation in system settings → privacy & security → automation (your terminal → terminal). |
+| `Could not load …: YAML syntax error` | fix the file; the message tells you the line. the app never touches your comments. |
+| `Ctrl+S` does nothing in a form | some terminal setups grab `Ctrl+S` for flow control. just hit enter on the last field instead. |
+| garbled screen after a crash | run `reset` in the terminal. |
+| colours look off | use a terminal with true-colour support and `TERM=xterm-256color` (or similar). |

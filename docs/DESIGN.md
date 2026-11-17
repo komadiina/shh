@@ -1,64 +1,64 @@
-# Design notes
+# design notes
 
-## Session persistence: tmux registry, not lockfiles
+## session persistence: tmux registry, not lockfiles
 
-**Question from the brief:** should resumable sessions use lockfiles, or should
-persistence be dropped when tmux isn't available?
+**the question from the brief:** should resumable sessions use lockfiles, or
+should we just drop persistence when tmux isn't around?
 
-**Decision:** use tmux's own session list as the only source of truth. Keep no
-lockfiles or state of our own. Without tmux, run ssh inline and **drop
-persistence**.
+**what we went with:** tmux's own session list is the only source of truth.
+we keep no lockfiles and no state of our own. no tmux? ssh runs inline and
+**persistence just isn't a thing**. that's fine.
 
-Why lockfiles cannot provide "resume":
+why lockfiles can't really do "resume":
 
-- An interactive ssh session is a process attached to a **pseudo-terminal
-  owned by the terminal that started it**. When that terminal or the TUI exits,
-  the kernel sends SIGHUP and ssh dies. A lockfile can record *that* a
-  session existed, but nothing remains to reattach to. "Resume" requires a
-  process that owns the pty independently of any terminal window. That is
-  exactly what a terminal multiplexer (tmux, screen, dtach/abduco) is.
-- Lockfiles also go stale (crash, reboot, `kill -9`) and need PID checks, a
-  cleanup policy and handling for races between two shh instances. tmux
-  already answers "is session X alive?" atomically (`tmux has-session -t =X`).
+- an interactive ssh session is a process hooked up to a **pseudo-terminal
+  owned by whatever terminal started it**. when that terminal or the tui goes
+  away, the kernel sends SIGHUP and ssh dies. a lockfile can remember *that* a
+  session existed; there's just nothing left to reattach to. "resume" needs a
+  process that owns the pty on its own, separate from any terminal window.
+  that's literally what a terminal multiplexer is (tmux, screen, dtach/abduco).
+- lockfiles also go stale (crash, reboot, `kill -9`). then you need pid checks,
+  a cleanup policy and race handling between two shh instances. tmux already
+  answers "is session X alive?" atomically (`tmux has-session -t =X`), so why bother.
 
-So:
+so here's how it plays out:
 
-| tmux available | Behaviour |
+| tmux available | behaviour |
 |---|---|
-| yes | `ssh-<name>` tmux session per server. Enter = `has-session` → attach/switch, or `new-session -d` + attach. Live sessions show ● (from `tmux list-sessions`, polled every 5 s and on terminal focus). |
-| no | ssh runs inline in the TUI's terminal (TUI suspended). Nothing to resume, and the UI says `inline (no persistence)`. |
+| yes | one `ssh-<name>` tmux session per server. enter = `has-session` → attach/switch, or `new-session -d` + attach. live sessions get a ● (from `tmux list-sessions`, polled every 5 s and on terminal focus). |
+| no | ssh runs inline in the tui's terminal (tui gets suspended). nothing to resume; the ui says `inline (no persistence)`. |
 
-Byobu runs on tmux, so it is covered. GNU screen / dtach are not supported
-yet. The `Tmux` adapter is the single place where another backend would plug in.
+byobu runs on tmux, so it's covered too. gnu screen and dtach aren't supported
+yet. if someone wants another backend, the `Tmux` adapter is the one spot it'd plug into.
 
-Details worth knowing:
+little details worth knowing:
 
-- Exact-match targets (`-t =name`) avoid tmux's prefix matching
-  (`ssh-web` must not match `ssh-web-01`).
-- Session names are sanitised to `[A-Za-z0-9_-]`, because tmux treats `.` and `:` as
+- exact-match targets (`-t =name`) dodge tmux's prefix matching;
+  `ssh-web` shouldn't accidentally match `ssh-web-01`.
+- session names get sanitised to `[A-Za-z0-9_-]`; tmux treats `.` and `:` as
   target separators.
-- Inside tmux, the app uses `switch-client` instead of nesting an attach.
-- `hold_on_error` wraps ssh in `sh -c '…; read'` so a failed connection stays
-  readable instead of the window disappearing.
+- inside tmux, the app uses `switch-client` instead of nesting an attach.
+- `hold_on_error` wraps ssh in `sh -c '…; read'` so a failed connection sticks
+  around long enough to read, instead of the window just vanishing.
 
-## Terminal hand-off
+## terminal hand-off
 
-OpenTUI's `renderer.suspend()` / `resume()` give the real terminal to a child
-process (`ssh` or `tmux attach`) with inherited stdio, then restore the
-alternate screen, raw mode and the render loop afterwards.
+opentui's `renderer.suspend()` / `resume()` hand the real terminal over to a
+child process (`ssh` or `tmux attach`) with inherited stdio. afterwards they
+bring back the alternate screen, raw mode and the render loop.
 
-## Config file
+## config file
 
-- YAML is edited through the `yaml` package's `Document` model, so user
-  comments and key order survive app edits. Servers are matched by name, so
-  comments attached to untouched entries stay in place.
-- Writes are atomic (temp file + rename) with mode 0600.
-- Validation is split into fatal errors (with the YAML path) and warnings
-  (value coerced, app continues).
-- Key files: only paths are stored and passed to `ssh -i`. The app never opens
+- yaml gets edited through the `yaml` package's `Document` model, so your
+  comments and key order survive app edits. servers are matched by name;
+  comments on entries you didn't touch stay put.
+- writes are atomic (temp file + rename) with mode 0600.
+- validation comes in two flavours: fatal errors (with the yaml path) and
+  warnings (value gets coerced, app keeps going).
+- key files: only paths are stored and passed to `ssh -i`. the app never opens
   them.
 
-## Code layout
+## code layout
 
 ```
 src/
@@ -72,14 +72,14 @@ src/
 tests/               unit tests + headless UI tests (@opentui/core/testing)
 ```
 
-All process execution goes through `ProcessRunner`, so the launcher and the
-whole UI are tested with a fake runner that simulates tmux.
+every process call goes through `ProcessRunner`. that means the launcher and
+the whole ui get tested with a fake runner that pretends to be tmux.
 
-## Testing
+## testing
 
-- `bun test`: 55 tests (config, ssh/tmux/launcher, table model, and a full
-  headless UI driven by mock key presses against a real temp config file).
-- `bun run typecheck`: strict TypeScript.
-- Manually verified on Linux in a real pty: start/quit, the starter config
-  being created, the inline and tmux connect flows, the hold-on-error prompt,
-  and the compiled single binary.
+- `bun test`: 55 tests (config, ssh/tmux/launcher, table model, plus a full
+  headless ui driven by fake key presses against a real temp config file).
+- `bun run typecheck`: strict typescript.
+- checked by hand on linux in a real pty: start/quit, the starter config
+  getting created, the inline and tmux connect flows, the hold-on-error prompt,
+  and the compiled single binary. all good.
