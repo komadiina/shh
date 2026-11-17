@@ -1,0 +1,38 @@
+# sshtui example configuration – copy to ~/.config/sshtui/config.yaml
+version: 1
+
+defaults:
+  user: ops                         # used when a server has no user
+  identity_file: ~/.ssh/id_ed25519  # used when a server has no key (path only; never read)
+  port: 22                          # -p only added when a server sets a port or this is not 22
+  connect_via: hostname             # hostname | ipv4
+  launch: auto                      # auto | tmux | inline | terminal
+  terminal_command: ""              # e.g. "alacritty -e {cmd}"; empty = auto-detect
+  ssh_options: ["-o", "ServerAliveInterval=30"]
+  tmux:
+    session_prefix: "ssh-"
+    hold_on_error: true
+  sort:
+    column: name
+    direction: asc
+
+servers:
+  - name: web-01
+    hostname: web-01.example.com
+    ipv4: 203.0.113.10
+    user: deploy
+    identity_file: ~/.ssh/deploy_ed25519
+    description: Production web
+    tags: [prod, web]
+    connections: 0
+  - name: db-01
+    ipv4: 10.0.0.5
+    user: pg
+    port: 5432
+    description: Postgres primary (IPv4 only)
+    tags: [prod, db]
+    connections: 0
+  - name: bastion
+    hostname: bastion            # a Host alias from ~/.ssh/config works too
+    description: Jump host (Host alias from ~/.ssh/config)
+    connections: 0

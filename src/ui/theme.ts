@@ -1,0 +1,21 @@
+/** Colour palette. Tuned for dark terminals, readable on light ones. */
+export const theme = {
+  fg: "#d8dee9",
+  dim: "#7b8494",
+  accent: "#88c0d0",
+  accentStrong: "#5e81ac",
+  border: "#4c566a",
+  borderFocused: "#88c0d0",
+  headerFg: "#eceff4",
+  selectedBg: "#3b4a63",
+  selectedFg: "#ffffff",
+  sessionActive: "#a3be8c",
+  warn: "#ebcb8b",
+  error: "#bf616a",
+  ok: "#a3be8c",
+  hotkey: "#ebcb8b",
+  modalBg: "#1e2430",
+  inputBg: "#2e3440",
+  inputFocusedBg: "#3b4252",
+  placeholder: "#616a7b",
+} as const;
