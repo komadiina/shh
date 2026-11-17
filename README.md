@@ -1,5 +1,12 @@
 # shh
 
+___
+
+*note: the whole repository content was completely AI-generated, so feel free to reuse, fork, adapt, rebrand, open PRs and whatnot else.   
+i couldnt mind less :)*
+
+___
+
 A keyboard-driven terminal UI for your SSH servers, built with
 [OpenTUI](https://opentui.com) and Bun.
 
